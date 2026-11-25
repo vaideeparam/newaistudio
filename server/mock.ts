@@ -162,7 +162,7 @@ const recentRuns = [
 const tools: { name: string; description: string; inputSchema: unknown }[] = [
   'whoami', 'list_workspaces', 'list_projects', 'ask_project', 'get_run', 'find_agents', 'agent_details',
   'agent_versions', 'run_agent', 'list_schedules', 'schedule_agent', 'control_schedule', 'recent_runs',
-  'source_status', 'connect_source', 'knowledge_graph', 'governance_summary', 'audit_log',
+  'source_status', 'connect_source', 'design_agent', 'get_design', 'save_agent', 'knowledge_graph', 'governance_summary', 'audit_log',
 ].map((name) => ({ name, description: `Mock ${name}`, inputSchema: { type: 'object', properties: {} } }));
 
 // ---------- knowledge graph (GUESS: no observed shape yet) ----------
@@ -196,6 +196,51 @@ const graph = {
     ['q3', 'ai-studio', 'launched'],
   ].map(([source, target, label]) => ({ source, target, label })),
 };
+
+// ---------- agent designer (GUESS: get_design shape not observed yet) ----------
+const designs = new Map<string, { request: string; stage: 'plan' | 'questions' | 'design'; approved?: boolean; answers?: Record<string, unknown> }>();
+
+function designView(id: string) {
+  const d = designs.get(id)!;
+  if (d.stage === 'plan') {
+    return {
+      design_id: id,
+      status: 'waiting',
+      waiting_on: 'plan',
+      plan: [
+        'Read the new documents added to the project since the last run (code)',
+        'Pull out decisions, risks and dates from each one (model, one call per document)',
+        'Check each item against its source passage (code)',
+        'Write a one-page brief with numbered sources (model)',
+      ],
+      summary: 'Here is my plan: four steps, two of them checked by code.',
+    };
+  }
+  if (d.stage === 'questions') {
+    return {
+      design_id: id,
+      status: 'waiting',
+      waiting_on: 'questions',
+      questions: [
+        { question: 'Who reads the brief?', options: ['Leadership', 'The project team', 'A customer'] },
+        { question: 'How long should it be?', options: ['A few bullets', 'One page', 'Detailed'] },
+      ],
+    };
+  }
+  return {
+    design_id: id,
+    status: 'ready',
+    name: 'Daily Document Brief',
+    inputs: [{ name: 'since', type: 'date', required: false, description: 'Only documents added after this date. Default: last run.' }],
+    steps: [
+      { id: 'collect_new_docs', type: 'custom_python', name: 'Collect new documents' },
+      { id: 'extract_items', type: 'llm_prompt', name: 'Extract decisions, risks and dates' },
+      { id: 'verify_items', type: 'custom_python', name: 'Check every item against its source' },
+      { id: 'write_brief', type: 'llm_prompt', name: `Write the brief for ${String(d.answers?.['Who reads the brief?'] ?? 'the team').toLowerCase()}` },
+    ],
+    changes: ['New agent'],
+  };
+}
 
 // ---------- ask runs ----------
 const runs = new Map<string, { message: string; project: string; agent?: string; conversation_id: string; startedAt: number }>();
@@ -262,6 +307,25 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
         ],
         tags: [{ tag: 'v1.2', version: 'c41f' }],
       });
+    case 'design_agent': {
+      const id = str('design_id') ?? `design-${++seq}`;
+      if (!designs.has(id)) designs.set(id, { request: str('request') ?? 'helps the team', stage: 'plan' });
+      const d = designs.get(id)!;
+      if (args.approve_plan) d.stage = 'questions';
+      else if (args.answers) {
+        d.answers = args.answers as Record<string, unknown>;
+        d.stage = 'design';
+      } else if (str('request') && d.stage === 'design') d.request += '; ' + str('request');
+      return ok({ design_id: id, status: 'running', progress: 'The designer is working' });
+    }
+    case 'get_design': {
+      const id = str('design_id') ?? '';
+      if (!designs.has(id)) return fail('Unknown design_id');
+      await new Promise((r) => setTimeout(r, 1200));
+      return ok(designView(id));
+    }
+    case 'save_agent':
+      return ok({ saved: true, name: str('name') ?? 'Daily Document Brief', tag: str('tag'), status: 'draft' });
     case 'run_agent': {
       const agent = str('agent') ?? 'agent';
       const a = agents.find((x) => x.name === agent || x.id === agent);

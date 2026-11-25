@@ -255,3 +255,24 @@ textarea.field__input { resize: vertical; }
   .new-routine__grid { grid-template-columns: 1fr; }
   .routine { flex-wrap: wrap; }
 }
+
+/* ---------- Agent designer ---------- */
+.design-project { min-width: 220px; }
+.design-chat { display: flex; flex-direction: column; min-height: 560px; }
+.design-msgs { flex: 1; display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-3); }
+.design-hints { display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; }
+.design-hints .idea { height: auto; padding: 8px 12px; text-align: left; background: var(--color-surface); }
+.design-reply { font-size: var(--font-size-md); line-height: var(--line-height-body); }
+.design-act { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.design-qs { display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; }
+.design-q__text { font-weight: 500; margin-bottom: 6px; }
+.design-q__opts { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.opt { height: 30px; padding: 0 12px; border-radius: var(--radius-pill); border: 1px solid var(--color-border-strong); background: var(--color-surface); cursor: pointer; font-size: var(--font-size-sm); }
+.opt.is-on { background: var(--color-action); border-color: var(--color-action); color: var(--color-action-text); }
+.plan { margin: 0; padding-left: 0; list-style: none; counter-reset: plan; display: flex; flex-direction: column; gap: var(--space-2); }
+.plan li { counter-increment: plan; display: flex; gap: var(--space-3); padding: var(--space-3); background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); font-size: var(--font-size-sm); }
+.plan li::before { content: counter(plan); font-family: var(--font-mono); font-size: var(--font-size-xs); width: 22px; height: 22px; flex: none; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--color-governed-signal); color: var(--color-governed); }
+.plan li.is-model { border-color: var(--clay-lt); }
+.plan li.is-model::before { border-color: var(--color-model); color: var(--color-model); }
+.save-row { display: flex; gap: var(--space-2); }
+.save-row .field__input { flex: 1; }

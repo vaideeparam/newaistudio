@@ -79,9 +79,9 @@ export function AgentPage() {
           <Link to={`/routines?new=1&agent=${encodeURIComponent(d?.name ?? key)}`} className="as-btn as-btn--secondary">
             <Icon name="routine" size={14} /> Schedule
           </Link>
-          <button type="button" className="as-btn as-btn--secondary">
-            <Icon name="pencil" size={14} /> Edit with AI
-          </button>
+          <Link to={`/agents/new?agent=${encodeURIComponent(d?.name ?? key)}`} className="as-btn as-btn--secondary">
+            <Icon name="pencil" size={14} /> Change with the designer
+          </Link>
         </div>
       </div>
       {d?.description && <p className="agent-desc">{d.description}</p>}

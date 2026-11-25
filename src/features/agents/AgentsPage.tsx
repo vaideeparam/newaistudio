@@ -18,9 +18,9 @@ export function AgentsPage() {
           <h1 className="as-display page__title">Agents</h1>
           <p className="page__sub">Run them, change them and schedule them, all from here.</p>
         </div>
-        <button type="button" className="as-btn as-btn--primary">
+        <Link to="/agents/new" className="as-btn as-btn--primary">
           <Icon name="spark" size={14} /> Design a new agent
-        </button>
+        </Link>
       </div>
       <label className="search">
         <Icon name="search" />

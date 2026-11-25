@@ -8,6 +8,7 @@ import { ConversationPage, NewChatPage } from '../features/chat/ChatPage';
 import { ChatsPage } from '../features/chat/ChatsPage';
 import { AgentsPage } from '../features/agents/AgentsPage';
 import { AgentPage } from '../features/agents/AgentPage';
+import { DesignPage } from '../features/agents/DesignPage';
 import { RoutinesPage } from '../features/routines/RoutinesPage';
 import { KnowledgePage } from '../features/knowledge/KnowledgePage';
 import { GovernancePage } from '../features/governance/GovernancePage';
@@ -25,6 +26,7 @@ export const routes: RouteObject[] = [
       { path: 'c/:id', element: <ConversationPage /> },
       { path: 'chats', element: <ChatsPage /> },
       { path: 'agents', element: <AgentsPage /> },
+      { path: 'agents/new', element: <DesignPage /> },
       { path: 'agents/:id', element: <AgentPage /> },
       { path: 'routines', element: <RoutinesPage /> },
       { path: 'knowledge', element: <KnowledgePage /> },

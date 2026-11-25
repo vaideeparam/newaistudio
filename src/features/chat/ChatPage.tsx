@@ -33,7 +33,7 @@ export function NewChatPage() {
   const ideas: { icon: IconName; label: string; go: () => void }[] = [
     { icon: 'doc', label: 'Ask your documents', go: () => ask('What did we learn from the Q3 launch?') },
     { icon: 'routine', label: 'Set up a routine', go: () => nav('/routines?new=1') },
-    { icon: 'agent', label: 'Build an agent', go: () => nav('/agents') },
+    { icon: 'agent', label: 'Build an agent', go: () => nav('/agents/new') },
     { icon: 'graph', label: 'Explore the knowledge graph', go: () => nav('/knowledge') },
   ];
 

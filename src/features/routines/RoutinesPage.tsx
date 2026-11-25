@@ -130,7 +130,9 @@ function NewRoutine({ initialAgent, onDone, onCancel }: { initialAgent?: string;
   useEffect(() => {
     if (!agent && agents[0]) setAgent(agents[0].name);
   }, [agents, agent]);
-  useEffect(() => setPreview(null), [agent, message, kind, time, weekday, hours]);
+  useEffect(() => {
+    setPreview(null);
+  }, [agent, message, kind, time, weekday, hours]);
 
   const when =
     kind === 'daily'
