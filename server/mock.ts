@@ -32,6 +32,16 @@ const tools: { name: string; description: string; inputSchema: unknown }[] = [
     },
   },
   {
+    name: 'use_workspace',
+    description: 'Make one of your workspaces the default.',
+    inputSchema: { type: 'object', properties: { workspace: { type: 'string' } }, required: ['workspace'] },
+  },
+  {
+    name: 'use_project',
+    description: 'Make a project your default.',
+    inputSchema: { type: 'object', properties: { project: { type: 'string' } }, required: ['project'] },
+  },
+  {
     name: 'get_run',
     description: "The answer of a run that returned 'running'.",
     inputSchema: { type: 'object', properties: { run_id: { type: 'string' } }, required: ['run_id'] },
@@ -106,6 +116,15 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
         ],
         took_s: (Date.now() - run.startedAt) / 1000,
       });
+    }
+    case 'use_workspace': {
+      if (args.workspace !== 'Demo Workspace') return fail('This app cannot use that workspace');
+      return ok({ workspace: 'Demo Workspace', default: true });
+    }
+    case 'use_project': {
+      const p = projects.find((x) => x.name === args.project || x.id === args.project);
+      if (!p) return fail('Unknown project');
+      return ok({ default_project: p.name, id: p.id });
     }
     default:
       return fail(`Mock mode has no data for tool "${name}"`);
