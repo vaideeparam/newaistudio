@@ -1,0 +1,198 @@
+/*
+ * ai/Studio design tokens, v0.1
+ * Extracted from index.html (the marketing landing page).
+ * Anything marked GUESS is not in the landing page and was inferred.
+ * See design-tokens/README.md for where each value came from.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Oxygen:wght@300;400;700&family=Readex+Pro:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* ---------- Typography: families ---------- */
+  --font-display: 'Readex Pro', sans-serif;          /* headings, logo, tabs, flow titles */
+  --font-body: 'Oxygen', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; /* GUESS: landing page has no code */
+
+  /* ---------- Typography: weights ---------- */
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;   /* Readex Pro only; Oxygen has no 500 and falls back to 400 */
+  --font-weight-semibold: 600; /* Readex Pro only */
+  --font-weight-bold: 700;
+
+  /* ---------- Typography: sizes ---------- */
+  --font-size-xs: 12px;    /* copyright */
+  --font-size-sm: 14px;    /* buttons, badges, prompts, captions */
+  --font-size-md: 15px;    /* card body in later sections */
+  --font-size-base: 16px;  /* body, nav links */
+  --font-size-lg: 18px;    /* subtitles, card titles (h3 small) */
+  --font-size-xl: 20px;    /* feature card titles */
+  --font-size-2xl: 24px;   /* logo, sub-section headings */
+  --font-size-3xl: 32px;   /* section headings (h2) */
+  --font-size-4xl: 42px;   /* hero title */
+
+  --line-height-tight: 1.2;   /* hero title */
+  --line-height-snug: 1.4;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.6; /* body default */
+
+  --letter-spacing-tight: -0.5px; /* h2 */
+  --letter-spacing-wide: 1px;     /* overlines, uppercase labels */
+
+  /* ---------- Colour: brand ---------- */
+  --color-brand-50: rgba(80, 70, 229, 0.04);  /* tinted surface (example header, AI response) */
+  --color-brand-100: rgba(80, 70, 229, 0.08); /* badge / icon tile background */
+  --color-brand-200: rgba(80, 70, 229, 0.15); /* stronger tint (hero diagram) */
+  --color-brand-500: #5046e5;                  /* primary: the single brand colour, ~111 uses */
+  --color-brand-600: #4338ca;                  /* primary hover */
+  --color-brand-700: #3730a3;                  /* GUESS: pressed state, not on the page */
+
+  /* ---------- Colour: neutrals ---------- */
+  --color-white: #ffffff;
+  --color-gray-25: #fafafa;   /* page background, alternate section background */
+  --color-gray-50: #f8f8f8;   /* subtle fill (diagram, active mobile tab) */
+  --color-gray-75: #f5f5f5;   /* prompt bubble, social icon background */
+  --color-gray-100: #f0f0f0;  /* default border / divider, track of progress bar */
+  --color-gray-200: #e0e0e0;  /* stronger border (secondary button, timeline line) */
+  --color-gray-300: #cccccc;  /* placeholder logos */
+  --color-gray-500: #777777;  /* muted text, captions */
+  --color-gray-600: #555555;  /* secondary text */
+  --color-gray-700: #333333;  /* body text */
+  --color-gray-900: #1a1a1a;  /* headings (also #111 in some sections, unified here) */
+  --color-black: #000000;     /* footer "contact" pill */
+
+  /* ---------- Colour: semantic status ---------- */
+  --color-info-500: #0d6efd;   /* "human input" callout accent */
+  --color-info-50: #f0f7ff;
+  --color-success-500: #28a745; /* "final insight" callout accent, check icons */
+  --color-success-50: #f0faf0;
+  --color-danger-500: #e53e3e;  /* only used on an "x" icon in the comparison */
+  --color-danger-50: #fdf0f0;   /* GUESS: no danger background on the page */
+  --color-warning-500: #d97706; /* GUESS: no warning colour on the page */
+  --color-warning-50: #fff8eb;  /* GUESS */
+
+  /* ---------- Colour: roles (use these in components) ---------- */
+  --color-bg: var(--color-gray-25);
+  --color-surface: var(--color-white);
+  --color-surface-subtle: var(--color-gray-25);
+  --color-surface-muted: var(--color-gray-75);
+  --color-surface-brand: var(--color-brand-50);
+
+  --color-text: var(--color-gray-700);
+  --color-text-strong: var(--color-gray-900);
+  --color-text-secondary: var(--color-gray-600);
+  --color-text-muted: var(--color-gray-500);
+  --color-text-on-brand: var(--color-white);
+  --color-text-link: var(--color-brand-500);
+
+  --color-border: var(--color-gray-100);
+  --color-border-strong: var(--color-gray-200);
+
+  --color-accent: var(--color-brand-500);
+  --color-accent-hover: var(--color-brand-600);
+  --color-accent-subtle: var(--color-brand-100);
+
+  /* "Human-in-the-loop" roles: the page's core story is AI proposes, human refines, result lands. */
+  --color-ai: var(--color-brand-500);
+  --color-ai-surface: var(--color-brand-50);
+  --color-human: var(--color-info-500);
+  --color-human-surface: var(--color-info-50);
+  --color-outcome: var(--color-success-500);
+  --color-outcome-surface: var(--color-success-50);
+
+  --color-focus-ring: rgba(80, 70, 229, 0.35); /* GUESS: page has no focus styles */
+
+  /* ---------- Spacing (4px base) ---------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 30px;  /* card padding, grid gap: the page uses 30, not 28 or 32 */
+  --space-8: 40px;
+  --space-9: 50px;
+  --space-10: 60px;
+  --space-12: 80px; /* section vertical padding */
+  --space-14: 100px;
+
+  /* ---------- Radius ---------- */
+  --radius-sm: 4px;    /* buttons, badges */
+  --radius-md: 6px;    /* prompt bubbles, small cards, icon tiles */
+  --radius-lg: 8px;    /* cards, panels */
+  --radius-pill: 999px; /* certification chips, contact pill (page uses 20px / 50px) */
+  --radius-full: 50%;  /* avatars, social icons, timeline dots */
+
+  /* ---------- Shadow ---------- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);  /* outline button */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);  /* resting card */
+  --shadow-md: 0 5px 15px rgba(0, 0, 0, 0.05); /* card hover (small lift) */
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.05); /* card hover (large lift) */
+
+  /* ---------- Border ---------- */
+  --border-width: 1px;
+  --border-width-accent: 3px; /* left rule on callouts */
+  --border-width-indicator: 2px; /* active tab underline, timeline line */
+
+  /* ---------- Motion ---------- */
+  --duration-fast: 0.2s;  /* colour, link, button */
+  --duration-base: 0.3s;  /* card lift */
+  --easing-standard: ease;
+  --lift-sm: -1px;  /* button hover */
+  --lift-md: -2px;  /* small card hover */
+  --lift-lg: -5px;  /* large card hover */
+
+  /* ---------- Layout ---------- */
+  --container-max: 1200px;
+  --container-narrow: 1000px; /* use-case and industry sections */
+  --content-max: 800px;       /* long headings */
+  --prose-max: 600px;         /* section intro paragraphs */
+  --gutter: 20px;
+  --header-height: 64px;      /* GUESS: derived from 15px padding + 24px logo line */
+  --breakpoint-md: 768px;     /* the only breakpoint on the page; CSS vars can't be used in @media */
+
+  /* ---------- Icons ---------- */
+  --icon-sm: 16px;
+  --icon-md: 24px;
+  --icon-lg: 40px;
+  --icon-xl: 56px;   /* feature icon tile */
+  --icon-stroke: 1.5; /* also 2 on larger icons */
+
+  /* ---------- Aliases for the app shell (src/styles/tokens.css names) ---------- */
+  --color-primary: var(--color-brand-500);
+  --color-primary-hover: var(--color-brand-600);
+  --font-heading: var(--font-display);
+
+  /* ---------- Z-index ---------- */
+  --z-header: 100;
+  --z-overlay: 1000; /* GUESS */
+  --z-toast: 1100;   /* GUESS */
+}
+
+/*
+ * Dark theme: GUESS. The landing page is light only.
+ * Kept minimal so the app has a starting point; revisit with real designs.
+ */
+[data-theme='dark'] {
+  --color-bg: #111114;
+  --color-surface: #1a1a1f;
+  --color-surface-subtle: #16161a;
+  --color-surface-muted: #222228;
+  --color-surface-brand: rgba(124, 116, 255, 0.10);
+  --color-text: #d6d6dc;
+  --color-text-strong: #f5f5f7;
+  --color-text-secondary: #a8a8b3;
+  --color-text-muted: #85858f;
+  --color-text-link: #8f88ff;
+  --color-border: #2a2a31;
+  --color-border-strong: #3a3a42;
+  --color-accent: #7c74ff;
+  --color-accent-hover: #8f88ff;
+  --color-accent-subtle: rgba(124, 116, 255, 0.16);
+  --color-ai: #8f88ff;
+  --color-ai-surface: rgba(124, 116, 255, 0.10);
+  --color-human: #5aa2ff;
+  --color-human-surface: rgba(90, 162, 255, 0.10);
+  --color-outcome: #4cc26a;
+  --color-outcome-surface: rgba(76, 194, 106, 0.10);
+}
