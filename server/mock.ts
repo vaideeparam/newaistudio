@@ -163,40 +163,66 @@ const recentRuns = [
 const tools: { name: string; description: string; inputSchema: unknown }[] = [
   'whoami', 'list_workspaces', 'list_projects', 'ask_project', 'get_run', 'find_agents', 'agent_details',
   'agent_versions', 'run_agent', 'list_schedules', 'schedule_agent', 'control_schedule', 'recent_runs',
-  'source_status', 'connect_source', 'design_agent', 'get_design', 'save_agent', 'list_connectors', 'knowledge_graph', 'governance_summary', 'audit_log',
+  'source_status', 'connect_source', 'design_agent', 'get_design', 'save_agent', 'list_connectors', 'resolve_context', 'knowledge_graph', 'governance_summary', 'audit_log',
 ].map((name) => ({ name, description: `Mock ${name}`, inputSchema: { type: 'object', properties: {} } }));
 
 // ---------- knowledge graph (GUESS: no observed shape yet) ----------
 const graph = {
   project: 'AI-Marketing',
   nodes: [
-    { id: 'ai-studio', label: 'ai/Studio', type: 'product', docs: 31 },
-    { id: 'gov', label: 'Governed runs', type: 'concept', docs: 18 },
-    { id: 'kg', label: 'Knowledge graph', type: 'concept', docs: 9 },
-    { id: 'mcp', label: 'MCP gateway', type: 'product', docs: 12 },
-    { id: 'leadgen', label: 'LeadGen pipeline', type: 'initiative', docs: 14 },
-    { id: 'pureai', label: 'PureAI', type: 'customer', docs: 6 },
-    { id: 'floforward', label: 'FloForward', type: 'customer', docs: 4 },
-    { id: 'q3', label: 'Q3 launch', type: 'event', docs: 7 },
-    { id: 'wedges', label: 'GTM wedges', type: 'concept', docs: 5 },
-    { id: 'citations', label: 'Verified citations', type: 'concept', docs: 8 },
-    { id: 'divum', label: 'Divum.ai', type: 'partner', docs: 3 },
+    { id: 'doc', label: 'Positioning v4', type: 'document', docs: 1 },
+    { id: 's1', label: '01 Why governed runs', type: 'section' },
+    { id: 's2', label: '02 Q3 launch retro', type: 'section' },
+    { id: 's3', label: '03 Architecture', type: 'section' },
+    { id: 's4', label: '04 Pricing', type: 'section' },
+    { id: 's5', label: '05 Customer proof', type: 'section' },
+    { id: 'e1', label: 'ai/Studio', type: 'entity' },
+    { id: 'e2', label: 'Context Resolver', type: 'entity' },
+    { id: 'e3', label: 'Verified citations', type: 'entity' },
+    { id: 'e4', label: 'MCP gateway', type: 'entity' },
+    { id: 'e5', label: 'LeadGen pipeline', type: 'entity' },
+    { id: 'e6', label: 'Regulated buyers', type: 'entity' },
+    { id: 'e7', label: 'EU AI Act', type: 'entity' },
+    { id: 't1', label: 'Governance', type: 'topic' },
+    { id: 't2', label: 'Go-to-market', type: 'topic' },
+    { id: 't3', label: 'Retrieval', type: 'topic' },
   ],
   edges: [
-    ['ai-studio', 'gov', 'enforces'],
-    ['ai-studio', 'kg', 'builds'],
-    ['ai-studio', 'mcp', 'exposes'],
-    ['kg', 'citations', 'grounds'],
-    ['gov', 'citations', 'checks'],
-    ['leadgen', 'wedges', 'targets'],
-    ['leadgen', 'ai-studio', 'runs on'],
-    ['pureai', 'ai-studio', 'uses'],
-    ['floforward', 'ai-studio', 'uses'],
-    ['q3', 'wedges', 'tested'],
-    ['divum', 'mcp', 'integrates'],
-    ['q3', 'ai-studio', 'launched'],
+    ['doc', 's1', 'has section'], ['doc', 's2', 'has section'], ['doc', 's3', 'has section'], ['doc', 's4', 'has section'], ['doc', 's5', 'has section'],
+    ['e1', 's1', 'mentioned in'], ['e1', 's3', 'mentioned in'], ['e2', 's3', 'mentioned in'], ['e3', 's1', 'mentioned in'], ['e3', 's2', 'mentioned in'],
+    ['e4', 's3', 'mentioned in'], ['e5', 's2', 'mentioned in'], ['e6', 's2', 'mentioned in'], ['e6', 's5', 'mentioned in'], ['e7', 's1', 'mentioned in'],
+    ['s1', 't1', 'has topic'], ['s2', 't2', 'has topic'], ['s3', 't3', 'has topic'], ['s4', 't2', 'has topic'], ['s5', 't2', 'has topic'],
+    ['e2', 'e3', 'enables'], ['e1', 'e4', 'exposes'],
   ].map(([source, target, label]) => ({ source, target, label })),
 };
+
+/** GUESS: mirrors the Resolver tab in Studio's KG page (document context + entities matched). */
+function resolve(query: string) {
+  const q = query.toLowerCase();
+  const pick = (ids: string[]) => graph.nodes.filter((n) => ids.includes(n.id));
+  const gov = /govern|audit|complian|regul|risk|act/.test(q);
+  const ids = gov ? ['e3', 'e6', 'e7', 't1', 's1', 's2'] : ['e1', 'e2', 'e4', 't3', 's3'];
+  return {
+    query,
+    model_calls: 0,
+    timing_ms: 184,
+    token_count: 2310,
+    document_context: gov
+      ? [
+          { document_name: 'Positioning v4', heading: '01 Why governed runs', score: 0.5248, summary: 'Code does what code can check; the model only enters where judgment is required. Every run carries a receipt.' },
+          { document_name: 'Positioning v4', heading: '02 Q3 launch retro', score: 0.5216, summary: 'Every enterprise call opened with: can you show me where the answer came from? Regulated buyers asked first.' },
+          { document_name: 'Positioning v4', heading: '05 Customer proof', score: 0.4976, summary: 'Two regulated customers moved from pilot to production after citation checks were shown in the run receipt.' },
+        ]
+      : [
+          { document_name: 'Positioning v4', heading: '03 Architecture', score: 0.5611, summary: 'The Context Resolver walks the graph and ranks summaries written at ingestion; no model call is made during retrieval.' },
+          { document_name: 'Positioning v4', heading: '01 Why governed runs', score: 0.4402, summary: 'ai/Studio exposes every agent through the MCP gateway, so any client can run it with the same governance.' },
+        ],
+    entities_matched: pick(ids)
+      .filter((n) => n.type === 'entity' || n.type === 'topic')
+      .map((n, i) => ({ id: n.id, name: n.label, source: i % 3 === 2 ? 'embedding' : 'document_kg', confidence: i % 3 === 2 ? 0.47 : 0.9 - i * 0.05 })),
+    highlight: ids,
+  };
+}
 
 // ---------- agent definitions (shape observed live via agent_details include_definition, 2026-11-25) ----------
 type Step = { id: string; type: string; name: string };
@@ -529,6 +555,9 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
       return ok({ link: 'https://example.invalid/connect', note: 'Mock: sign-in link would open here.' });
     case 'knowledge_graph':
       return ok(graph);
+    case 'resolve_context':
+      await new Promise((r) => setTimeout(r, 400));
+      return ok(resolve(str('query') ?? ''));
     case 'governance_summary': // GUESS
       return ok({
         workspace: 'App Minds',

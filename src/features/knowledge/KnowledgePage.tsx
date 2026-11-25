@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStudio } from '../../app/studio';
 import { Icon } from '../../components/Icon';
@@ -6,6 +6,17 @@ import { callTool } from '../../lib/mcp';
 import { useTool } from '../../lib/useTool';
 import { useChats } from '../chat/store';
 import { Graph, type GEdge, type GNode } from './Graph';
+
+/** GUESS: mirrors the Resolver tab of Studio's KG page. */
+interface Resolved {
+  query: string;
+  model_calls?: number;
+  timing_ms?: number;
+  token_count?: number;
+  document_context?: { document_name: string; heading?: string; summary?: string; score?: number }[];
+  entities_matched?: { id?: string; name: string; source?: string; confidence?: number }[];
+  highlight?: string[];
+}
 
 interface SourceStatus {
   microsoft?: { connected: boolean; account?: string | null };
@@ -39,6 +50,26 @@ export function KnowledgePage() {
   const nodes = graph.data?.nodes ?? [];
   const edges = graph.data?.edges ?? [];
   const node = nodes.find((n) => n.id === sel);
+  const [query, setQuery] = useState('');
+  const [resolved, setResolved] = useState<Resolved | null>(null);
+  const [resolving, setResolving] = useState(false);
+  const hits = useMemo(() => new Set(resolved?.highlight ?? resolved?.entities_matched?.map((e) => e.id ?? '') ?? []), [resolved]);
+  const counts = useMemo(() => {
+    const m: Record<string, number> = {};
+    nodes.forEach((n) => (m[n.type] = (m[n.type] ?? 0) + 1));
+    return m;
+  }, [nodes]);
+  useEffect(() => setResolved(null), [project]);
+
+  const resolve = async () => {
+    if (!query.trim()) return;
+    setResolving(true);
+    try {
+      setResolved(await callTool<Resolved>('resolve_context', { project, query }));
+    } finally {
+      setResolving(false);
+    }
+  };
 
   const connect = async (source: string) => {
     const r = await callTool<{ link?: string; sign_in?: string }>('connect_source', { project, source });
@@ -67,18 +98,69 @@ export function KnowledgePage() {
       <div className="kg">
         <section className="as-card kg__graph">
           <div className="zone-head">
-            <span className="as-label">Knowledge graph</span>
+            <span className="as-label">What Studio understood</span>
             <span className="legend-dots">
-              <i className="g-product" /> product <i className="g-concept" /> concept <i className="g-customer" /> customer
-              <i className="g-initiative" /> initiative <i className="g-event" /> event
+              <i className="g-document" /> document {counts.document ?? 0} <i className="g-section" /> section {counts.section ?? 0}
+              <i className="g-entity" /> entity {counts.entity ?? 0} <i className="g-topic" /> topic {counts.topic ?? 0}
             </span>
           </div>
+          <form
+            className="resolver"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void resolve();
+            }}
+          >
+            <Icon name="bolt" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Type a question to see what Studio would read for it" />
+            {resolved && (
+              <button type="button" className="as-btn as-btn--ghost resolver__clear" onClick={() => { setResolved(null); setQuery(''); }}>
+                Clear
+              </button>
+            )}
+            <button type="submit" className="as-btn as-btn--secondary" disabled={resolving || !query.trim()}>
+              {resolving ? 'Looking…' : 'Show me'}
+            </button>
+          </form>
           {nodes.length > 0 ? (
-            <Graph nodes={nodes} edges={edges} selected={sel} onSelect={setSel} />
+            <Graph nodes={nodes} edges={edges} selected={sel} onSelect={setSel} highlight={hits} />
           ) : (
             <p className="muted">{graph.loading ? 'Reading the graph…' : 'No graph yet. It is built as documents are added.'}</p>
           )}
-          {node && (
+          {resolved && (
+            <div className="resolved">
+              <div className="resolved__head">
+                <span className="as-status as-status--governed">
+                  Found in {resolved.timing_ms ?? '—'} ms{resolved.model_calls === 0 ? ' · no AI model used' : ''}
+                </span>
+                <span className="muted small">{resolved.entities_matched?.length ?? 0} things matched</span>
+              </div>
+              {resolved.document_context?.map((c, i) => (
+                <div key={i} className="passage">
+                  <div className="passage__score" title={`score ${c.score}`}>
+                    <span style={{ width: `${Math.round((c.score ?? 0) * 160)}%` }} />
+                  </div>
+                  <div>
+                    <div className="passage__title">
+                      {c.document_name}
+                      {c.heading && <span className="muted"> · {c.heading}</span>}
+                    </div>
+                    <div className="passage__text">{c.summary}</div>
+                  </div>
+                </div>
+              ))}
+              <div className="resolved__actions">
+                <button
+                  type="button"
+                  className="as-btn as-btn--primary"
+                  onClick={() => nav(`/c/${start({ kind: 'project', name: project }, resolved.query, workspace)}`)}
+                >
+                  Ask this
+                </button>
+              </div>
+            </div>
+          )}
+          {node && !resolved && (
             <div className="kg__node">
               <div>
                 <div className="as-card__title">{node.label}</div>

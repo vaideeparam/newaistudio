@@ -62,27 +62,38 @@ function layout(nodes: GNode[], edges: GEdge[]) {
 }
 
 const TYPE_CLASS: Record<string, string> = {
-  product: 'g-product',
-  concept: 'g-concept',
-  customer: 'g-customer',
-  partner: 'g-customer',
-  initiative: 'g-initiative',
-  event: 'g-event',
+  document: 'g-document',
+  section: 'g-section',
+  entity: 'g-entity',
+  topic: 'g-topic',
 };
 
-export function Graph({ nodes, edges, onSelect, selected }: { nodes: GNode[]; edges: GEdge[]; selected?: string; onSelect: (id: string) => void }) {
+export function Graph({
+  nodes,
+  edges,
+  onSelect,
+  selected,
+  highlight,
+}: {
+  nodes: GNode[];
+  edges: GEdge[];
+  selected?: string;
+  onSelect: (id: string) => void;
+  /** Nodes the resolver matched: everything else dims. */
+  highlight?: Set<string>;
+}) {
   const pos = useMemo(() => layout(nodes, edges), [nodes, edges]);
   const [hover, setHover] = useState<string | null>(null);
   const focus = hover ?? selected;
   const near = useMemo(() => {
-    if (!focus) return null;
+    if (!focus) return highlight && highlight.size ? highlight : null;
     const s = new Set([focus]);
     edges.forEach((e) => {
       if (e.source === focus) s.add(e.target);
       if (e.target === focus) s.add(e.source);
     });
     return s;
-  }, [focus, edges]);
+  }, [focus, edges, highlight]);
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="graph" role="img" aria-label="Knowledge graph">
@@ -104,11 +115,11 @@ export function Graph({ nodes, edges, onSelect, selected }: { nodes: GNode[]; ed
       })}
       {nodes.map((n) => {
         const p = pos.get(n.id)!;
-        const r = 6 + Math.sqrt(n.docs ?? 1) * 2.2;
+        const r = n.type === 'document' ? 14 : n.type === 'topic' ? 11 : n.type === 'section' ? 8 : 9;
         return (
           <g
             key={n.id}
-            className={`g-node ${TYPE_CLASS[n.type] ?? ''} ${near && !near.has(n.id) ? 'g-dim' : ''} ${selected === n.id ? 'is-sel' : ''}`}
+            className={`g-node ${TYPE_CLASS[n.type] ?? ''} ${near && !near.has(n.id) ? 'g-dim' : ''} ${selected === n.id ? 'is-sel' : ''} ${highlight?.has(n.id) ? 'is-hit' : ''}`}
             transform={`translate(${p.x},${p.y})`}
             onMouseEnter={() => setHover(n.id)}
             onMouseLeave={() => setHover(null)}
