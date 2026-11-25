@@ -1,81 +1,49 @@
-# ai/Studio design tokens (v0.1)
+# ⦃param⦄ ai/Studio design tokens (v0.2)
 
-First pass at shared design tokens for the new ai/Studio app, pulled from the
-marketing landing page (`index.html`). The landing page is the only brand
-source today, so anything it does not show is marked **GUESS** and should be
-checked against real product designs.
+Shared tokens for the new ai/Studio app.
+
+- **Colours and type** come from the paramai.studio design language, which is the current brand.
+- **Layout and component feel** follow Claude web: a warm paper canvas, a left sidebar, one centred conversation column, a large rounded composer, and a side panel for artefacts and receipts.
+
+v0.1 took its values from the old landing page (`index.html`: `#5046e5`, Readex Pro, Oxygen). That version was dropped because it doesn't match the current brand.
 
 | File | What it is |
 | --- | --- |
-| `tokens.css` | CSS custom properties: raw scales, role tokens, a guessed dark theme, aliases for the app shell |
-| `tokens.json` | The same values in W3C design-token format (for Style Dictionary or a TS theme). Guessed values carry `"$extensions": { "guess": true }` |
-| `components.css` | The patterns that repeat on the landing page, rebuilt on tokens (`as-` class prefix) |
-| `preview.html` | Open in a browser to see every token and component |
+| `tokens.css` | CSS custom properties: the raw brand palette, semantic and role tokens, a dark theme built from the brand's console palette, and the layout sizes |
+| `tokens.json` | The same values in W3C design-token format. Guessed values carry `"$extensions": { "guess": true }` |
+| `components.css` | App parts (`as-` prefix): app frame, sidebar, conversation, composer, buttons, chips, status dots, run steps, cards, attachment, design/run zones, console receipt panel, side panel, menu |
+| `preview.html` | Open it locally to see a mock app screen and the token sheet. Add `#dark` to the URL for the dark theme |
 
-## Usage
+## Source
 
-```css
-@import './design-tokens/tokens.css';
-@import './design-tokens/components.css'; /* optional */
-```
+The brand values come from the paramai.studio visual-language reference, the same tokens used for ⦃param⦄ figures and posts. paramai.studio itself couldn't be fetched from the build environment, so these values haven't been checked against the live site's CSS yet.
 
-Components should use **role tokens** (`--color-text`, `--color-surface`,
-`--color-accent`, …) rather than raw scales, so the dark theme
-(`<html data-theme="dark">`) works without changes.
+## The brand rules the tokens encode
 
-The app shell (Vite + React + TS, plain CSS) uses `--color-primary`,
-`--font-heading` and `--font-body`; those names are provided as aliases.
+- **Colour is semantic, never decoration.**
+  - Green means deterministic, governed or settled.
+  - Clay marks where the model enters and where attention is needed. It is also the brand mark.
+  - Grey is neutral.
+  - Purple is used only for LLM chain-of-thought.
 
-## What came from the landing page
+  In the app this becomes `--color-governed`, `--color-model`, `--color-reasoning` and `--color-document`. Run steps, receipts and status dots use them consistently.
+- **Use clay sparingly.** It goes on the "ai/Studio" lockup, the composer send button and the one thing on screen that needs attention. Primary buttons are ink on paper, as in Claude web.
+- **Paper for the argument, console for real output.** The dark console panel (radius 18, 44px title bar, mono rows) is for receipts, traces and code.
+- **Type.** Bricolage Grotesque 600 at −0.03em for display. Geist Light for body and Geist Medium for emphasis. Geist Mono for labels, ids, numbers and receipts.
+- **The ⦃ ⦄ glyphs** are missing from Bricolage and Geist. Wrap them in `.as-glyph`, which falls back to DejaVu Sans, or write `{ param }` in mono.
+- **Zones.** `zone-design` and `zone-run` tint design-time and run-time areas. This supports merging the developer and enterprise-user views into one window.
 
-- **Fonts.** Readex Pro (300–700) for headings, logo, tabs and step titles.
-  Oxygen (300/400/700) for body, buttons and UI text.
-- **Brand colour.** `#5046e5` is the only brand hue (≈111 uses), with
-  `#4338ca` for hover and three translucent tints (4%, 8%, 15%) for surfaces,
-  badges and icon tiles.
-- **Neutrals.** Twelve greys from `#fafafa` to `#000`. `#f0f0f0` is the
-  default border; `#555` secondary text; `#333` body; `#1a1a1a` headings.
-- **Status.** Blue `#0d6efd`, green `#28a745` and red `#e53e3e`, all used as
-  accents. Blue and green have light backgrounds on the page.
-- **Human-in-the-loop roles.** The page's story is "AI proposes, human
-  refines, outcome lands", shown as callouts with a 3px left rule:
-  AI = brand purple, human = blue, outcome = green. These became
-  `--color-ai`, `--color-human` and `--color-outcome`, which should map well to
-  agent runs, review steps and artefacts in the app.
-- **Shape and depth.** Radii 4 / 6 / 8px plus pills; very soft shadows
-  (all at 5% black); cards lift 2–5px on hover over 0.2–0.3s.
-- **Layout.** 1200px container (1000px in some sections), 20px gutter, 80px
-  section padding, a single 768px breakpoint.
-
-**Recurring components:** logo, buttons (primary, secondary, ghost, black
-pill), approach badge, overline, certification chip, card (feature, value,
-industry, example with tinted header), icon tile, conversation callouts
-(prompt, AI, human, outcome), step flow / timeline, tabs (underline on
-desktop, pill on mobile), metric bar, check list, divided list, section
-heading, sticky header with nav links, round icon button.
-
-## Guesses and judgement calls
+## Guesses
 
 | Token | Why it is a guess |
 | --- | --- |
-| `--color-brand-700` `#3730a3` | No pressed state on the page; next step of the same indigo ramp |
-| `--color-warning-*` | No warning colour on the page; amber picked to sit with the existing blue/green/red |
-| `--color-danger-50` | Red is only an icon colour on the page |
-| `--color-focus-ring` | The page has no focus styles |
-| `--font-mono` | No code on the page; system mono stack |
-| Dark theme | The page is light only; derived by hand, not tested for contrast |
-| `--header-height`, z-index overlay/toast | Not on the page |
-| Button weight 700 | The page sets 500 on Oxygen buttons, but Oxygen has no 500, so browsers render 400. 700 used instead; switch to 400 if the lighter look was intended |
-| `--color-gray-900` `#1a1a1a` | The page mixes `#1a1a1a` and `#111` for headings; unified on `#1a1a1a` |
-| `--space-7` = 30px | The page uses 30px for card padding and grid gaps, so the scale keeps it instead of 28/32 |
-| `--radius-pill` | The page uses 20px and 50px for the same pill shape |
-| Disabled button style | Not on the page |
-
-## Inconsistencies spotted in `index.html`
-
-- Several `<style>` blocks redefine global `h2`, `h3`, `.container` and
-  `.btn`, so later sections silently restyle earlier ones (for example the
-  last `.container` wins at 1200px, `h3` ends up 18px / 500).
-- Fonts are loaded four times (one `<link>` plus three `@import`s).
-- Secondary text appears as `#555`, `#666` and `#777`; only `#555` and `#777`
-  were kept.
+| App type scale (11–36px) | The brand gives faces and weights, not UI sizes. Sized like Claude web |
+| Sidebar colour (`paper-3`) | Not in the brand. One step darker than the canvas, as in Claude web |
+| Hover/active overlays, `surface-raised` | Not in the brand |
+| Radii 6 and 8px | The brand only defines cards (12–14) and console panels (18) |
+| Shadow values | The brand says "soft shadow" without a value |
+| `--color-danger` `#a8321e` | The brand has no error red. This is a darker clay so it reads as related |
+| Focus ring and selection (clay at low alpha) | Not in the brand |
+| Dark theme sidebar, zones and console step | Derived from the console palette. Contrast not yet checked |
+| Sidebar, side panel and top bar sizes, motion timings | Claude web proportions, measured by eye |
+| Send button in clay | Matches Claude web and the "one clay action" rule. Could be ink if clay should stay purely semantic |
