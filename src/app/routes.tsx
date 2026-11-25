@@ -5,6 +5,7 @@ import { HomePage } from '../pages/HomePage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { SignInPage } from '../pages/SignInPage';
 import { ToolsPage } from '../pages/ToolsPage';
+import { askRoutes } from '../features/ask/routes';
 
 /**
  * Route table. Feature folders (src/features/<name>/) export RouteObject[]
@@ -21,7 +22,7 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <HomePage /> },
       { path: 'dev/tools', element: <ToolsPage /> },
-      // ...askRoutes,
+      ...askRoutes,
       { path: '*', element: <NotFoundPage /> },
     ],
   },
