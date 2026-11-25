@@ -365,3 +365,42 @@ textarea.field__input { resize: vertical; }
 .passage__title { font-size: var(--font-size-sm); font-weight: 500; }
 .passage__text { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
 .resolved__actions { display: flex; justify-content: flex-end; }
+
+/* ---------- Governance (settings style) ---------- */
+.gov2-page { max-width: 1080px; padding-top: 0; }
+.gov2 { display: grid; grid-template-columns: 200px minmax(0, 680px); gap: var(--space-12); }
+.gov2__nav { position: sticky; top: 0; align-self: start; padding-top: var(--space-8); display: flex; flex-direction: column; gap: 2px; }
+.gov2__title { font-size: var(--font-size-2xl); margin: 0 0 var(--space-5); }
+.gov2__link { text-align: left; border: 0; background: transparent; padding: 7px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.gov2__link:hover { background: var(--color-surface-hover); color: var(--color-text); }
+.gov2__link.is-on { background: var(--color-surface-active); color: var(--color-text); font-weight: 500; }
+.gov2__body { padding-top: var(--space-8); }
+.gsec { padding-bottom: var(--space-10); scroll-margin-top: var(--space-6); }
+.gsec + .gsec { border-top: 1px solid var(--color-border); padding-top: var(--space-6); }
+.gsec__h { font-size: var(--font-size-lg); font-weight: 500; margin: 0 0 var(--space-2); font-family: var(--font-body); }
+.gsec__lead { margin: 0 0 var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-sm); max-width: 62ch; }
+.gsec__row { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3); }
+.answers { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); font-size: var(--font-size-md); }
+.answers li { display: flex; gap: var(--space-3); align-items: flex-start; }
+.answers li > svg { color: var(--color-governed-signal); flex: none; margin-top: 4px; }
+.answers b { font-weight: 500; }
+.answers__warn > svg { color: var(--color-model) !important; }
+.rowset { border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface); overflow: hidden; }
+.grow { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); min-height: 56px; }
+.grow + .grow { border-top: 1px solid var(--color-border); }
+.grow__icon { color: var(--color-governed-signal); flex: none; }
+.grow__avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--color-surface-active); display: grid; place-items: center; font-size: var(--font-size-xs); font-weight: 500; flex: none; }
+.grow__text { flex: 1; min-width: 0; }
+.grow__title { font-size: var(--font-size-sm); font-weight: 500; }
+.grow__sub { font-size: var(--font-size-xs); color: var(--color-text-muted); margin-top: 2px; }
+.grow__ctl { display: flex; align-items: center; gap: var(--space-2); flex: none; }
+.gov2__select { padding: 5px 8px; font-size: var(--font-size-xs); }
+.gov2__danger { color: var(--color-danger); height: 28px; font-size: var(--font-size-xs); }
+.gov2__export { height: 30px; font-size: var(--font-size-xs); }
+.gov2__filter { margin-bottom: var(--space-3); }
+.atable { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
+.atable th { text-align: left; font-weight: 400; font-size: var(--font-size-xs); color: var(--color-text-muted); padding: 8px 8px; border-bottom: 1px solid var(--color-border-strong); }
+.atable td { padding: 10px 8px; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+.atable b { font-weight: 500; }
+.atable .num { text-align: right; font-family: var(--font-mono); font-size: var(--font-size-xs); white-space: nowrap; }
+@media (max-width: 900px) { .gov2 { grid-template-columns: 1fr; gap: 0; } .gov2__nav { position: static; flex-direction: row; flex-wrap: wrap; } .gov2__title { width: 100%; } }
