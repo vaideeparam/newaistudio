@@ -39,12 +39,12 @@ export function ToolsPage() {
 
   return (
     <div className="page">
-      <h1>Gateway tools</h1>
+      <h1 className="as-display page__title">Studio MCP tools</h1>
       <p className="muted">{tools.length} tools exposed by the ai/Studio Gateway MCP.</p>
       <div className="tools">
         <label className="field">
-          <span>Tool</span>
-          <select value={selected} onChange={(e) => setSelected(e.target.value)}>
+          <span className="field__label">Tool</span>
+          <select className="field__input" value={selected} onChange={(e) => setSelected(e.target.value)}>
             {tools.map((t) => (
               <option key={t.name} value={t.name}>
                 {t.name}
@@ -54,10 +54,10 @@ export function ToolsPage() {
         </label>
         {tool?.description && <p className="muted">{tool.description}</p>}
         <label className="field">
-          <span>Arguments (JSON)</span>
-          <textarea rows={5} value={args} onChange={(e) => setArgs(e.target.value)} spellCheck={false} />
+          <span className="field__label">Arguments (JSON)</span>
+          <textarea className="field__input as-mono" rows={5} value={args} onChange={(e) => setArgs(e.target.value)} spellCheck={false} />
         </label>
-        <button type="button" className="btn btn--primary" disabled={!selected || busy} onClick={() => void run()}>
+        <button type="button" className="as-btn as-btn--primary" disabled={!selected || busy} onClick={() => void run()}>
           {busy ? 'Running…' : 'Call tool'}
         </button>
         {error && <p className="error">{error}</p>}

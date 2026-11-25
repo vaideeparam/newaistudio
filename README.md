@@ -1,6 +1,21 @@
 # ai/Studio (new UI)
 
-A web UI for Param ai/Studio built on the **ai/Studio Gateway MCP**.
+A Claude-web-style single window for Param ai/Studio, built on the **ai/Studio dev MCP**
+(`https://dev.paramai.studio/gwapi/mcp`). Run time and design time share one frame:
+
+| Surface | What it is | MCP tools |
+| --- | --- | --- |
+| **New chat** (`/`) | Greeting + composer. The chip in the composer picks a project *or* an agent per conversation, so there is no global workspace/project switch | `ask_project`, `run_agent`, `get_run` |
+| **Conversation** (`/c/:id`) | Answer with numbered cited sources, collapsible run steps (code vs model), and a **Receipt** side panel | same |
+| **Agents** (`/agents`, `/agents/:id`) | Run zone (left) beside Design zone (right): steps marked governed code vs model call, runs, versions, routines | `find_agents`, `agent_details`, `agent_versions`, `recent_runs` |
+| **Routines** (`/routines`) | Scheduled agents, like Routines in Claude web: preview, then create; pause/resume; run now | `list_schedules`, `schedule_agent`, `control_schedule` |
+| **Knowledge** (`/knowledge`) | Per-project knowledge graph, sources and connectors (SharePoint, OneDrive, Google Drive) | `source_status`, `connect_source`, `knowledge_graph`* |
+| **Governance** (`/governance`) | Workspace isolation map, sharing, policies, allowed models, members, audit log | `list_workspaces`, `governance_summary`*, `audit_log`* |
+
+\* Not seen on the MCP yet: mock-only names, to be mapped to the real dev MCP tools.
+
+Design tokens live in `design-tokens/` (paramai.studio palette, Bricolage Grotesque / Geist / Geist Mono)
+and are copied into `src/styles/`.
 
 - `src/` — Vite + React 19 + TypeScript app (react-router 7, plain CSS with design tokens)
 - `server/` — small Node server (Hono) that holds the MCP session to the Gateway.
@@ -14,8 +29,8 @@ npm install
 npm run dev          # web on :5173, API on :8787, mock data by default
 ```
 
-Open http://localhost:5173. With no `.env`, the server runs in **mock mode** (canned
-whoami / list_workspaces / list_projects / ask_project / get_run), so UI work doesn't need a Gateway.
+Open http://localhost:5173. With no `.env`, the server runs in **mock mode** (canned data
+shaped like the real dev MCP responses), so UI work doesn't need a Gateway.
 
 To use the real Gateway, copy `.env.example` to `.env` and set `STUDIO_MCP_URL`, then either:
 
@@ -46,6 +61,7 @@ Session: `useSession()` from `src/app/session.tsx` (`session`, `signIn()`, `sign
 
 ## Adding a feature
 
-Put it in `src/features/<name>/`, export a `RouteObject[]`, spread it into the signed-in
-children in `src/app/routes.tsx`, and add a sidebar entry in `src/app/nav.ts`.
+Put it in `src/features/<name>/`, add its route in `src/app/routes.tsx`, and a sidebar entry
+in `src/app/AppFrame.tsx`. Shared data (workspace, projects, agents) comes from `useStudio()`;
+conversations from `useChats()`; the right-hand panel from `usePanel()`.
 `/dev/tools` lists every Gateway tool and lets you call one with JSON args.
