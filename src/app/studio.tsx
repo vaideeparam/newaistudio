@@ -68,16 +68,18 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         callTool<{ workspaces?: Workspace[] }>('list_workspaces').catch(() => ({ workspaces: [] as Workspace[] })),
         callTool<{ projects?: Project[] }>('list_projects'),
         callTool<{ agents?: AgentSummary[] }>('find_agents'),
-        callTool<{ connectors?: Connector[]; catalog?: ConnectorType[] }>('list_connectors').catch(() => ({ connectors: [], catalog: [] })),
+        callTool<{ connectors?: Connector[]; catalog?: ConnectorType[] }>('list_connectors').catch(() => null),
       ]);
+      const projectsList = pj?.projects ?? [];
+      const cnList = cn ?? { connectors: await connectorsFromSources(projectsList), catalog: FILE_CATALOG };
       setState({
         workspace: me?.workspace,
         defaultProject: me?.default_project ?? undefined,
         workspaces: ws?.workspaces ?? [],
         projects: pj?.projects ?? [],
         agents: dedupe(ag?.agents ?? []),
-        connectors: cn?.connectors ?? [],
-        catalog: cn?.catalog ?? [],
+        connectors: cnList.connectors ?? [],
+        catalog: cnList.catalog ?? [],
         loading: false,
       });
     } catch (e) {
@@ -90,6 +92,55 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, [reload]);
 
   return <Ctx.Provider value={{ ...state, reload }}>{children}</Ctx.Provider>;
+}
+
+const FILE_CATALOG: ConnectorType[] = [
+  { type: 'sharepoint', label: 'SharePoint', group: 'Files', about: 'Sites and libraries' },
+  { type: 'onedrive', label: 'OneDrive', group: 'Files', about: 'Your files' },
+  { type: 'gdrive', label: 'Google Drive', group: 'Files', about: 'My Drive and shared drives' },
+];
+
+interface SourceStatus {
+  microsoft?: { connected: boolean; account?: string | null };
+  google?: { connected: boolean; account?: string | null };
+  sources?: { name: string; type: string; files_indexed?: number }[];
+}
+
+/**
+ * Fallback when the MCP has no list_connectors: the live Gateway exposes file
+ * sources per project (source_status / connect_source / browse_source), so
+ * build the connector list from those.
+ */
+async function connectorsFromSources(projects: Project[]): Promise<Connector[]> {
+  const all = await Promise.all(
+    projects.map((p) =>
+      callTool<SourceStatus>('source_status', { project: p.name })
+        .then((s) => ({ p, s }))
+        .catch(() => null),
+    ),
+  );
+  const out: Connector[] = [];
+  for (const r of all) {
+    if (!r?.s) continue;
+    const { p, s } = r;
+    if (s.microsoft?.connected)
+      out.push({ id: `ms-${p.id}`, type: 'sharepoint', name: `Microsoft · ${p.name}`, account: s.microsoft.account ?? undefined, status: 'connected', scope: 'project', access: 'read', projects: [p.name] });
+    if (s.google?.connected)
+      out.push({ id: `g-${p.id}`, type: 'gdrive', name: `Google Drive · ${p.name}`, account: s.google.account ?? undefined, status: 'connected', scope: 'project', access: 'read', projects: [p.name] });
+    for (const src of s.sources ?? []) {
+      out.push({
+        id: `src-${p.id}-${src.name}`,
+        type: src.type.startsWith('teamdocs') ? 'teamdocs' : src.type.split('_')[0] ?? src.type,
+        name: src.name,
+        account: `${src.type.replace(/_/g, ' ')} · ${src.files_indexed ?? 0} files`,
+        status: 'connected',
+        scope: 'project',
+        access: 'read',
+        projects: [p.name],
+      });
+    }
+  }
+  return out;
 }
 
 function dedupe(list: AgentSummary[]): AgentSummary[] {
