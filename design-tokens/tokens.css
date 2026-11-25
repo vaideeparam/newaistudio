@@ -1,0 +1,205 @@
+/*
+ * ⦃param⦄ ai/Studio app tokens, v0.2
+ * Colours and type from the paramai.studio design language (the current brand).
+ * Layout and component feel modelled on Claude web: warm paper canvas, left
+ * sidebar, one centred conversation column, a big rounded composer.
+ * Anything marked GUESS is not in the brand reference and was inferred.
+ * See design-tokens/README.md for sources.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600&family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap');
+
+:root {
+  /* ======================= Raw brand palette ======================= */
+  /* Paper (light canvas) */
+  --paper: #f3f1e9;
+  --paper-2: #fdfcf8;
+  --paper-3: #eae7dd;
+  --grid: #e6e3d8;
+  /* Ink (text on paper) */
+  --ink: #191712;
+  --ink-2: #56524a;
+  --ink-3: #8b867a;
+  --rule: #e0ddd2;
+  --rule-2: #cfcabd;
+  /* Console (dark surfaces) */
+  --console: #16140f;
+  --console-2: #1d1b14;
+  --console-3: #211e17;
+  --c-ink: #f2efe6;
+  --c-ink-2: #a9a392;
+  --c-ink-3: #6f6a5a;
+  --c-rule: rgba(242, 239, 230, 0.10);
+  /* Semantic hues */
+  --green: #1a5c3a;
+  --green-sig: #2f8f5a;
+  --green-glow: rgba(47, 143, 90, 0.22);
+  --clay: #bd5630;
+  --clay-lt: #d98a6a;
+  --purple: #6b3a9e;
+  --doc-blue: #2563a8;
+  --amber: #d8b24a;
+  /* Zones */
+  --zone-design: #efece3;
+  --zone-run: #e9efe9;
+  --hero: #e5efe9;
+
+  /* ======================= Typography ======================= */
+  --font-display: 'Bricolage Grotesque', 'Geist', system-ui, sans-serif; /* weight 600, -0.03em */
+  --font-body: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;  /* Light for body, Medium for emphasis */
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace; /* labels, numbers, ids, receipts, code */
+  --font-glyph: 'DejaVu Sans', 'Segoe UI Symbol', sans-serif; /* ⦃ ⦄ only: brand fonts lack U+2983/2984 */
+
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  --letter-spacing-display: -0.03em;
+  --letter-spacing-label: 0.12em; /* GUESS: mono uppercase labels ("DISPATCHES FROM PRODUCTION") */
+
+  /* App type scale. GUESS: brand reference gives faces, not an app scale; sized like Claude web. */
+  --font-size-2xs: 11px;  /* mono labels */
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;   /* sidebar, captions, footer mono */
+  --font-size-base: 15px; /* UI text */
+  --font-size-md: 16px;   /* conversation body */
+  --font-size-lg: 18px;
+  --font-size-xl: 22px;
+  --font-size-2xl: 28px;  /* page titles */
+  --font-size-3xl: 36px;  /* empty-state greeting */
+
+  --line-height-tight: 1.15;
+  --line-height-snug: 1.35;
+  --line-height-body: 1.6;
+
+  /* ======================= Semantic colour =======================
+   * Colour carries meaning, never decoration (brand rule).
+   *   green  = deterministic, governed, settled
+   *   clay   = where the model enters / attention needed / brand mark. Use sparingly.
+   *   grey   = neutral, context, retired
+   *   purple = LLM chain-of-thought only
+   */
+  --color-governed: var(--green);
+  --color-governed-signal: var(--green-sig);
+  --color-governed-surface: var(--zone-run);
+  --color-model: var(--clay);
+  --color-model-soft: var(--clay-lt);
+  --color-reasoning: var(--purple);
+  --color-document: var(--doc-blue);
+  --color-warning: var(--amber);
+  --color-danger: #a8321e;  /* GUESS: no error red in the brand; a darker clay so it reads as related */
+  --color-neutral: var(--ink-3);
+
+  /* ======================= Roles (use these in components) ======================= */
+  --color-bg: var(--paper);               /* app canvas */
+  --color-sidebar: var(--paper-3);        /* GUESS: sidebar a step darker than canvas, as in Claude web */
+  --color-surface: var(--paper-2);        /* cards, composer, menus */
+  --color-surface-raised: #ffffff;        /* GUESS: popovers above cards */
+  --color-surface-hover: rgba(25, 23, 18, 0.05);  /* GUESS */
+  --color-surface-active: rgba(25, 23, 18, 0.08); /* GUESS */
+  --color-zone-design: var(--zone-design);
+  --color-zone-run: var(--zone-run);
+
+  --color-text: var(--ink);
+  --color-text-secondary: var(--ink-2);
+  --color-text-muted: var(--ink-3);
+  --color-text-on-dark: var(--c-ink);
+  --color-text-link: var(--ink);          /* links underline in ink; clay is kept for attention */
+
+  --color-border: var(--rule);
+  --color-border-strong: var(--rule-2);
+
+  --color-brand: var(--clay);             /* "ai/Studio" in the lockup */
+  --color-action: var(--ink);             /* primary buttons: ink on paper, like Claude web */
+  --color-action-hover: #2c2a23;          /* GUESS */
+  --color-action-text: var(--paper-2);
+  --color-send: var(--clay);              /* composer send: the one clay action on screen */
+  --color-send-hover: #a84a28;            /* GUESS */
+
+  --color-user-bubble: var(--paper-3);    /* user turns in the conversation */
+  --color-console: var(--console);        /* receipts, code, run traces */
+  --color-console-bar: var(--console-2);
+  --color-focus-ring: rgba(189, 86, 48, 0.35); /* GUESS: clay ring */
+  --color-selection: rgba(189, 86, 48, 0.18);  /* GUESS */
+
+  /* Aliases kept for the app shell branch */
+  --color-primary: var(--color-action);
+  --color-primary-hover: var(--color-action-hover);
+  --font-heading: var(--font-display);
+
+  /* ======================= Space, size, shape ======================= */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --grid-size: 80px;                      /* background grid on paper */
+
+  --radius-xs: 6px;    /* GUESS: chips, inline code */
+  --radius-sm: 8px;    /* GUESS: buttons, menu items */
+  --radius-md: 12px;   /* cards (brand: 12–14) */
+  --radius-lg: 14px;   /* cards, large */
+  --radius-xl: 18px;   /* console panels, composer */
+  --radius-pill: 999px;
+
+  --shadow-card: 0 1px 2px rgba(25, 23, 18, 0.04), 0 2px 8px rgba(25, 23, 18, 0.04); /* "soft shadow"; exact value GUESS */
+  --shadow-composer: 0 1px 2px rgba(25, 23, 18, 0.05), 0 6px 24px rgba(25, 23, 18, 0.06); /* GUESS */
+  --shadow-popover: 0 8px 32px rgba(25, 23, 18, 0.12); /* GUESS */
+
+  --console-bar-height: 44px;
+
+  /* ======================= Layout (Claude web style) ======================= */
+  --sidebar-width: 272px;           /* GUESS */
+  --sidebar-width-collapsed: 56px;  /* GUESS */
+  --conversation-max: 768px;        /* centred message column */
+  --composer-max: 768px;
+  --side-panel-width: 520px;        /* artefact / receipt panel on the right; GUESS */
+  --topbar-height: 52px;            /* GUESS */
+  --breakpoint-md: 768px;           /* reference only; CSS vars can't be used in @media */
+
+  /* ======================= Motion ======================= */
+  --duration-fast: 120ms;  /* GUESS */
+  --duration-base: 200ms;  /* GUESS */
+  --easing-standard: cubic-bezier(0.2, 0, 0, 1); /* GUESS */
+
+  --z-sidebar: 20;
+  --z-topbar: 30;
+  --z-popover: 1000;
+  --z-toast: 1100;
+}
+
+/* Dark theme = the brand's console palette. */
+[data-theme='dark'] {
+  --color-bg: var(--console);
+  --color-sidebar: #12100c;               /* GUESS */
+  --color-surface: var(--console-2);
+  --color-surface-raised: var(--console-3);
+  --color-surface-hover: rgba(242, 239, 230, 0.05);
+  --color-surface-active: rgba(242, 239, 230, 0.08);
+  --color-zone-design: #1f1c15;           /* GUESS */
+  --color-zone-run: #17201a;              /* GUESS */
+  --color-governed-surface: #17201a;      /* GUESS */
+  --color-text: var(--c-ink);
+  --color-text-secondary: var(--c-ink-2);
+  --color-text-muted: var(--c-ink-3);
+  --color-text-link: var(--c-ink);
+  --color-border: var(--c-rule);
+  --color-border-strong: rgba(242, 239, 230, 0.18);
+  --color-action: var(--c-ink);
+  --color-action-hover: #ffffff;
+  --color-action-text: var(--console);
+  --color-user-bubble: var(--console-3);
+  --color-console: #0f0d0a;               /* GUESS: a step below the canvas so panels still read */
+  --color-console-bar: var(--console-2);
+  --color-governed: var(--green-sig);
+  --color-model: var(--clay-lt);
+  --color-brand: var(--clay-lt);
+  --shadow-card: none;
+  --shadow-composer: 0 0 0 1px var(--c-rule);
+}
