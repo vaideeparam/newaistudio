@@ -32,6 +32,19 @@ interface Envelope<T> {
   error?: { message: string; tool?: string; details?: unknown };
 }
 
+/**
+ * Static demo build (VITE_STATIC_MOCK=1): no server, the mock runs in the page.
+ * Used to publish a clickable preview; never set for a real deployment.
+ */
+export const STATIC_MOCK = import.meta.env.VITE_STATIC_MOCK === '1';
+
+async function staticCall<T>(name: string, args: Record<string, unknown>): Promise<T> {
+  const { mockCallTool } = await import('../../server/mock');
+  const out = await mockCallTool(name, args);
+  if (out.isError) throw new McpToolError(name, typeof out.data === 'string' ? out.data : `Tool ${name} failed`, out.data);
+  return out.data as T;
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(path, {
     credentials: 'same-origin',
@@ -64,6 +77,7 @@ export function callTool<T = unknown>(
   args: Record<string, unknown> = {},
   opts: { signal?: AbortSignal } = {},
 ): Promise<T> {
+  if (STATIC_MOCK) return staticCall<T>(name, args);
   return request<T>(`/api/mcp/tools/${encodeURIComponent(name)}`, {
     method: 'POST',
     body: JSON.stringify(args),
@@ -71,6 +85,7 @@ export function callTool<T = unknown>(
   });
 }
 
-export function listTools(): Promise<ToolInfo[]> {
+export async function listTools(): Promise<ToolInfo[]> {
+  if (STATIC_MOCK) return (await import('../../server/mock')).mockListTools();
   return request<ToolInfo[]>('/api/mcp/tools');
 }

@@ -1,6 +1,6 @@
 import { StrictMode, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { RouterProvider, createBrowserRouter } from 'react-router-dom';
+import { RouterProvider, createBrowserRouter, createMemoryRouter } from 'react-router-dom';
 import { PanelProvider } from './app/panel';
 import { SessionProvider, useSession } from './app/session';
 import { StudioProvider } from './app/studio';
@@ -11,7 +11,8 @@ import './styles/components.css';
 import './styles/app.css';
 import './features/ask/ask.css';
 
-const router = createBrowserRouter(routes);
+// The static demo runs inside a frame that owns the URL, so it keeps its route in memory.
+const router = import.meta.env.VITE_STATIC_MOCK === '1' ? createMemoryRouter(routes) : createBrowserRouter(routes);
 
 /** Studio data loads only once someone is signed in. */
 function SignedInProviders({ children }: { children: ReactNode }) {

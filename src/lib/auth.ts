@@ -7,6 +7,10 @@ export interface SessionInfo {
 }
 
 export async function getSession(): Promise<SessionInfo> {
+  if (import.meta.env.VITE_STATIC_MOCK === '1') {
+    const { mockUser } = await import('../../server/mock');
+    return { signedIn: true, mode: 'mock', user: mockUser };
+  }
   const res = await fetch('/api/auth/status', { credentials: 'same-origin' });
   if (!res.ok) throw new Error(`Could not reach the ai/Studio server (${res.status})`);
   return (await res.json()) as SessionInfo;

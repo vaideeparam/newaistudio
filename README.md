@@ -65,3 +65,7 @@ Put it in `src/features/<name>/`, add its route in `src/app/routes.tsx`, and a s
 in `src/app/AppFrame.tsx`. Shared data (workspace, projects, agents) comes from `useStudio()`;
 conversations from `useChats()`; the right-hand panel from `usePanel()`.
 `/dev/tools` lists every Gateway tool and lets you call one with JSON args.
+
+## Shareable demo
+
+`npm run build:demo` builds a mock-only, single-file page at `dist-demo/ai-studio-demo.html` (the mock MCP runs in the browser, routes stay in memory). It is what the private preview link is published from.
