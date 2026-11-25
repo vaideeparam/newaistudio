@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useStudio } from '../../app/studio';
 import { Composer } from '../../components/Composer';
 import { Icon } from '../../components/Icon';
@@ -61,11 +61,102 @@ export function AgentPage() {
     nav(`/c/${start({ kind: 'agent', name: d?.name ?? key, id: d?.id ?? id, project: d?.project }, text, workspace, [], filled)}`);
   };
 
+  const [params, setParams] = useSearchParams();
+  const editing = params.get('edit') === '1';
+
+  if (!editing) {
+    const firstSentence = d?.description?.split(/(?<=\.)\s/)[0];
+    const steps = d?.definition?.chain_of_thought?.steps ?? d?.steps?.map((x) => ({ ...x, operator: x.type })) ?? [];
+    const modelSteps = steps.filter((x) => x.operator === 'llm_prompt').length;
+    return (
+      <div className="page agent-simple">
+        <Link to="/agents" className="crumb">
+          <Icon name="chevron" size={12} className="flip" /> Agents
+        </Link>
+        <div className="agent-hero">
+          <div className="agent-hero__icon">
+            <Icon name="agent" size={22} />
+          </div>
+          <div className="agent-hero__text">
+            <h1 className="as-display page__title">{d?.name ?? summary?.name ?? 'Agent'}</h1>
+            {firstSentence && <p className="agent-hero__desc">{firstSentence}</p>}
+          </div>
+          <div className="page__actions">
+            <Link to={`/routines?new=1&agent=${encodeURIComponent(d?.name ?? key)}`} className="as-btn as-btn--ghost">
+              <Icon name="routine" size={14} /> Schedule
+            </Link>
+            <button type="button" className="as-btn as-btn--ghost" onClick={() => setParams({ edit: '1' })}>
+              <Icon name="pencil" size={14} /> Edit
+            </button>
+          </div>
+        </div>
+
+        {extraInputs.length > 0 && (
+          <div className="inputs">
+            {extraInputs.map((i) => (
+              <label key={i.name} className="field">
+                <span className="field__label">{i.name}</span>
+                <input
+                  className="field__input"
+                  placeholder={i.description ?? i.type}
+                  value={inputs[i.name] ?? ''}
+                  onChange={(e) => setInputs((v) => ({ ...v, [i.name]: e.target.value }))}
+                />
+              </label>
+            ))}
+          </div>
+        )}
+        <Composer
+          target={{ kind: 'agent', name: d?.name ?? key, id: d?.id ?? id }}
+          lockTarget
+          autoFocus
+          onSubmit={run}
+          placeholder={mainInput ? (mainInput.description ?? `Enter ${mainInput.name}`) : `Message ${d?.name ?? 'this agent'}`}
+        />
+
+        <div className="agent-trust">
+          <span className="as-status as-status--governed">Runs inside {workspace ?? 'your workspace'}</span>
+          {steps.length > 0 && (
+            <span className="muted small">
+              {steps.length} steps · {modelSteps === 1 ? 'one AI step' : `${modelSteps} AI steps`}, the rest checked by code
+            </span>
+          )}
+        </div>
+
+        {(sched.data?.schedules?.length ?? 0) > 0 && (
+          <section className="agent-sec">
+            <div className="as-label sub-head">Runs on its own</div>
+            {sched.data!.schedules!.map((x) => (
+              <div key={x.schedule} className="mini-row">
+                <span className={`dot dot--${x.state}`} />
+                <span className="mini-row__main">{x.name ?? x.when}</span>
+                <span className="muted small">{x.state === 'active' ? `next ${x.next_run}` : 'paused'}</span>
+              </div>
+            ))}
+          </section>
+        )}
+
+        {(runs.data?.runs?.length ?? 0) > 0 && (
+          <section className="agent-sec">
+            <div className="as-label sub-head">Recent</div>
+            {runs.data!.runs!.slice(0, 5).map((r) => (
+              <div key={r.run_id} className="mini-row">
+                <span className={`dot dot--${r.status}`} />
+                <span className="mini-row__main">{r.summary ?? r.kind}</span>
+                <span className="muted small">{fmt(r.when)}</span>
+              </div>
+            ))}
+          </section>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="page page--wide">
-      <Link to="/agents" className="crumb">
-        <Icon name="chevron" size={12} className="flip" /> Agents
-      </Link>
+      <button type="button" className="crumb crumb--btn" onClick={() => setParams({})}>
+        <Icon name="chevron" size={12} className="flip" /> Done editing
+      </button>
       <div className="page__head">
         <div>
           <h1 className="as-display page__title">{d?.name ?? summary?.name ?? 'Agent'}</h1>
@@ -85,9 +176,6 @@ export function AgentPage() {
           </div>
         </div>
         <div className="page__actions">
-          <Link to={`/routines?new=1&agent=${encodeURIComponent(d?.name ?? key)}`} className="as-btn as-btn--secondary">
-            <Icon name="routine" size={14} /> Schedule
-          </Link>
           <Link to={`/agents/new?agent=${encodeURIComponent(d?.name ?? key)}`} className="as-btn as-btn--secondary">
             <Icon name="pencil" size={14} /> Change with the designer
           </Link>
@@ -98,7 +186,7 @@ export function AgentPage() {
       <div className="split">
         <section className="as-zone as-zone--run split__run">
           <div className="zone-head">
-            <span className="as-label">Run</span>
+            <span className="as-label">Test run</span>
             <span className="as-status as-status--governed">Runs inside {workspace ?? 'this workspace'}</span>
           </div>
           {extraInputs.length > 0 && (
