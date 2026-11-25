@@ -44,16 +44,17 @@ const agents = [
   {
     name: 'VV-KG: Answer from the graph',
     id: 'a1e82d9f',
-    kind: 'chat',
+    kind: 'form',
     status: 'published',
     project: 'AI-Marketing',
+    inputs: [{ name: 'question', type: 'text', required: true, description: 'A question about the documents in the workspace.' }],
     description:
       'Retrieval with no language-model call: the UKE Context Resolver walks the knowledge graph and ranks document summaries built at ingestion. One bounded model call writes the answer; code checks every citation.',
     steps: [
-      { id: 'resolve', type: 'custom_python', name: 'Walk the knowledge graph' },
-      { id: 'rank', type: 'custom_python', name: 'Rank document summaries' },
-      { id: 'answer', type: 'llm_prompt', name: 'Write the answer' },
-      { id: 'verify', type: 'custom_python', name: 'Check every citation' },
+      { id: 'resolve_context', type: 'uke_context_resolver', name: 'Resolve context from the graph' },
+      { id: 'pack_sources', type: 'custom_python', name: 'Number the sources' },
+      { id: 'write_answer', type: 'llm_prompt', name: 'Write the answer' },
+      { id: 'check_citations', type: 'custom_python', name: 'Check every citation' },
     ],
   },
   {
@@ -197,6 +198,71 @@ const graph = {
   ].map(([source, target, label]) => ({ source, target, label })),
 };
 
+// ---------- agent definitions (shape observed live via agent_details include_definition, 2026-11-25) ----------
+type Step = { id: string; type: string; name: string };
+function definitionFor(a: { name: string; description: string; steps: Step[]; inputs?: { name: string; type: string; required?: boolean; description?: string }[] }) {
+  const kg = a.name.startsWith('VV-KG');
+  const steps = a.steps.map((st, i) => {
+    const prev = a.steps[i - 1];
+    const model = st.type === 'llm_prompt';
+    return {
+      id: st.id,
+      operator: kg && i === 0 ? 'uke_context_resolver' : st.type,
+      name: st.name,
+      description: model
+        ? 'The only model call. It sees the numbered sources and nothing else, and its output is capped.'
+        : kg && i === 0
+          ? 'Entity recognition, a two-hop graph walk and a ranked read of document summaries. No language model is called here.'
+          : 'Deterministic step. No model.',
+      config: model
+        ? {
+            model: 'gpt-5.6-luna',
+            temperature: 1,
+            max_tokens: 1500,
+            reasoning_effort: 'low',
+            timeout_seconds: 120,
+            web_search: false,
+            system_prompt:
+              'You answer questions about documents using only the numbered sources you are given. EMIT JSON ONLY.\n\nRules:\n- Use only the sources.\n- Cite the source id for every claim. Never cite an id that was not given to you.\n- British spelling. No marketing adjectives.',
+          }
+        : kg && i === 0
+          ? { token_budget: 4000, n_hops: 2, max_entities: 20, max_community_summaries: 5, timeout_seconds: 60 }
+          : { timeout_seconds: 30, code: '# Check every citation against the sources the model was actually given.\n# No model here either.\nimport json, re\n\nknown = {s["id"]: s for s in packed["sources"]}\ncited = re.findall(r"\\[(S\\d+)\\]", answer)\nfailed = [c for c in cited if c not in known]\nresult = {"answer": answer, "citation_check": {"checked": len(cited), "failed": len(failed)}}\n' },
+      input_bindings: prev
+        ? [{ param: model ? 'prompt' : 'input', source: { type: 'step_output', step_id: prev.id, path: model ? 'result.prompt' : 'result' } }]
+        : [{ param: 'query', source: { type: 'mind_input', ref: a.inputs?.[0]?.name ?? 'message' } }],
+      on_error: 'fail',
+      position: { x: 80 + i * 300, y: 100 },
+    };
+  });
+  return {
+    name: a.name,
+    version: '1.0.1',
+    description: a.description,
+    interface: {
+      inputs: a.inputs ?? [{ name: 'message', type: 'text', required: true, description: 'What the agent is asked.' }],
+      outputs: [{ name: 'response', type: 'json', description: kg ? '{question, answer, citations[], citation_check{checked,failed}, context_stats}' : 'The result' }],
+    },
+    governance: {
+      audit_level: 'standard',
+      pii_handling: kg ? 'none' : 'redact',
+      allowed_models: null,
+      blocked_models: null,
+      human_approval: a.name.includes('Email') ? 'before_send' : 'none',
+      guardrail_names: a.name.includes('Email') ? ['no-generic-outbound'] : [],
+      approval_threshold_usd: null,
+    },
+    guarantees: { max_cost_usd: 0.1, max_latency_ms: 180000, timeout_ms: 180000, max_retries: 1, idempotent: false, deterministic_output_schema: true },
+    runtime_hints: { preferred_models: ['gpt-5.6-luna'] },
+    chain_of_thought: {
+      steps,
+      connections: a.steps.slice(1).map((st, i) => ({ from_step: a.steps[i]!.id, to_step: st.id })),
+      control_nodes: [],
+    },
+    cluster_id: 'divum-edge',
+  };
+}
+
 // ---------- connectors (GUESS: tool name and shape not seen on the MCP yet) ----------
 const connectors = [
   { id: 'cn-gmail-sales', type: 'gmail', name: 'Sales inbox', account: 'sales@ mailbox', status: 'connected', scope: 'workspace', access: 'read', tools: 6, projects: ['AI-Marketing'] },
@@ -321,7 +387,12 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
     case 'agent_details': {
       const a = agents.find((x) => x.name === str('agent') || x.id === str('agent'));
       if (!a) return fail('No agent with that name');
-      return ok({ ...a, updated: '2026-11-20T11:38:44Z', tags: a.status === 'published' ? ['v1.2'] : [] });
+      return ok({
+        ...a,
+        updated: '2026-11-20T11:38:44Z',
+        tags: a.status === 'published' ? ['v1.2'] : [],
+        ...(args.include_definition ? { definition: definitionFor(a) } : {}),
+      });
     }
     case 'agent_versions':
       return ok({
@@ -357,7 +428,7 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
     case 'run_agent': {
       const agent = str('agent') ?? 'agent';
       const a = agents.find((x) => x.name === agent || x.id === agent);
-      return startRun(str('message') ?? JSON.stringify(args.inputs ?? {}), a?.project ?? 'AI-Marketing', str('conversation_id'), a?.name ?? agent);
+      return startRun(str('message') ?? String(Object.values((args.inputs as Record<string, unknown>) ?? {})[0] ?? ''), a?.project ?? 'AI-Marketing', str('conversation_id'), a?.name ?? agent);
     }
     case 'ask_project': {
       const message = str('message');
@@ -386,10 +457,10 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
         ],
         steps: run.agent
           ? [
-              { tool: 'walk_graph', status: 'done', kind: 'code', ms: 212 },
-              { tool: 'rank_summaries', status: 'done', kind: 'code', ms: 88 },
-              { tool: 'answer', status: 'done', kind: 'model', ms: 2140, model: 'claude-sonnet', tokens: 1840 },
-              { tool: 'verify_citations', status: 'done', kind: 'code', ms: 41 },
+              { tool: 'resolve_context', status: 'done', kind: 'code', ms: 212 },
+              { tool: 'pack_sources', status: 'done', kind: 'code', ms: 88 },
+              { tool: 'write_answer', status: 'done', kind: 'model', ms: 2140, model: 'gpt-5.6-luna', tokens: 1840 },
+              { tool: 'check_citations', status: 'done', kind: 'code', ms: 41 },
             ]
           : [
               { tool: 'search_documents', status: 'done', kind: 'code', ms: 340 },

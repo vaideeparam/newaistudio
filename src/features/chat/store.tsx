@@ -37,6 +37,8 @@ export interface Conversation {
   workspace?: string;
   /** Connector ids switched on for this conversation (from the composer's + menu). */
   connectors?: string[];
+  /** Form agents: the inputs the first run was started with. */
+  inputs?: Record<string, string>;
   conversationId?: string;
   turns: Turn[];
   updatedAt: number;
@@ -74,7 +76,7 @@ function load(): Conversation[] {
 interface ChatState {
   conversations: Conversation[];
   get: (id: string) => Conversation | undefined;
-  start: (target: Target, question: string, workspace?: string, connectors?: string[]) => string;
+  start: (target: Target, question: string, workspace?: string, connectors?: string[], inputs?: Record<string, string>) => string;
   setConnectors: (id: string, connectors: string[]) => void;
   send: (id: string, question: string) => void;
   remove: (id: string) => void;
@@ -116,6 +118,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         // TODO(dev MCP): pass conv.connectors once ask_project/run_agent take a connectors argument.
         // The Gateway rejects unknown arguments, so they are only shown in the UI for now.
         const args: Record<string, unknown> = { ...base.args };
+        if (conv.target.kind === 'agent' && conv.inputs && !conv.conversationId) {
+          args.inputs = conv.inputs;
+          delete args.message;
+        }
         if (conv.conversationId) args.conversation_id = conv.conversationId;
         else args.new_conversation = true;
 
@@ -147,7 +153,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 
   const start = useCallback(
-    (target: Target, question: string, workspace?: string, connectors: string[] = []) => {
+    (target: Target, question: string, workspace?: string, connectors: string[] = [], inputs?: Record<string, string>) => {
       const turn: Turn = { id: uid('t'), question, state: 'running', steps: [], citations: [] };
       const conv: Conversation = {
         id: uid('c'),
@@ -155,6 +161,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         target,
         workspace,
         connectors,
+        inputs,
         turns: [turn],
         updatedAt: Date.now(),
       };
