@@ -1,7 +1,10 @@
+import { useStudio } from '../app/studio';
 import type { Conversation, Turn } from '../features/chat/store';
 
 /** The run receipt: which steps were code (governed) and which were the model. */
 export function Receipt({ conv, turn }: { conv: Conversation; turn: Turn }) {
+  const { connectors } = useStudio();
+  const used = connectors.filter((c) => conv.connectors?.includes(c.id));
   const modelCalls = turn.steps.filter((s) => s.kind === 'model').length;
   const codeSteps = turn.steps.filter((s) => s.kind === 'code').length;
   return (
@@ -47,6 +50,8 @@ export function Receipt({ conv, turn }: { conv: Conversation; turn: Turn }) {
         <dd>
           {turn.citations.length} cited source{turn.citations.length === 1 ? '' : 's'}, all inside {conv.workspace ?? 'this workspace'}
         </dd>
+        <dt>Connectors</dt>
+        <dd>{used.length ? used.map((c) => `${c.name} (${c.access === 'read_write' ? 'read & write' : 'read only'})`).join(', ') : 'None'}</dd>
         <dt>Citations</dt>
         <dd>
           <span className="as-status as-status--governed">Checked against the sources given</span>

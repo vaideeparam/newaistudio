@@ -11,6 +11,7 @@ import { AgentPage } from '../features/agents/AgentPage';
 import { DesignPage } from '../features/agents/DesignPage';
 import { RoutinesPage } from '../features/routines/RoutinesPage';
 import { KnowledgePage } from '../features/knowledge/KnowledgePage';
+import { ConnectorsPage } from '../features/connectors/ConnectorsPage';
 import { GovernancePage } from '../features/governance/GovernancePage';
 
 export const routes: RouteObject[] = [
@@ -30,6 +31,7 @@ export const routes: RouteObject[] = [
       { path: 'agents/:id', element: <AgentPage /> },
       { path: 'routines', element: <RoutinesPage /> },
       { path: 'knowledge', element: <KnowledgePage /> },
+      { path: 'connectors', element: <ConnectorsPage /> },
       { path: 'governance', element: <GovernancePage /> },
       { path: 'dev/tools', element: <ToolsPage /> },
       { path: '*', element: <NotFoundPage /> },

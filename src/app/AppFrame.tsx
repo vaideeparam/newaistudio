@@ -11,6 +11,7 @@ const nav: { to: string; label: string; icon: IconName }[] = [
   { to: '/agents', label: 'Agents', icon: 'agent' },
   { to: '/routines', label: 'Routines', icon: 'routine' },
   { to: '/knowledge', label: 'Knowledge', icon: 'graph' },
+  { to: '/connectors', label: 'Connectors', icon: 'plug' },
   { to: '/governance', label: 'Governance', icon: 'shield' },
 ];
 

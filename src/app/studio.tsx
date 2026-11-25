@@ -13,6 +13,24 @@ export interface AgentSummary {
   name: string;
   description?: string;
 }
+/** A connection someone already set up: a named instance of a connector type. GUESS: shape not seen live. */
+export interface Connector {
+  id: string;
+  type: string;
+  name: string;
+  account?: string;
+  status: 'connected' | 'needs_auth' | 'error' | string;
+  scope?: 'workspace' | 'project' | 'personal' | string;
+  access?: 'read' | 'read_write' | string;
+  tools?: number;
+  projects?: string[];
+}
+export interface ConnectorType {
+  type: string;
+  label: string;
+  group: string;
+  about?: string;
+}
 export interface Workspace {
   name: string;
   role?: string;
@@ -25,6 +43,8 @@ interface StudioState {
   workspaces: Workspace[];
   projects: Project[];
   agents: AgentSummary[];
+  connectors: Connector[];
+  catalog: ConnectorType[];
   defaultProject?: string;
   loading: boolean;
   error?: string;
@@ -39,15 +59,16 @@ const Ctx = createContext<StudioState | null>(null);
  * without a global workspace/project switch.
  */
 export function StudioProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<Omit<StudioState, 'reload'>>({ workspaces: [], projects: [], agents: [], loading: true });
+  const [state, setState] = useState<Omit<StudioState, 'reload'>>({ workspaces: [], projects: [], agents: [], connectors: [], catalog: [], loading: true });
 
   const reload = useCallback(async () => {
     try {
-      const [me, ws, pj, ag] = await Promise.all([
+      const [me, ws, pj, ag, cn] = await Promise.all([
         callTool<{ workspace?: string; default_project?: string }>('whoami'),
         callTool<{ workspaces?: Workspace[] }>('list_workspaces').catch(() => ({ workspaces: [] as Workspace[] })),
         callTool<{ projects?: Project[] }>('list_projects'),
         callTool<{ agents?: AgentSummary[] }>('find_agents'),
+        callTool<{ connectors?: Connector[]; catalog?: ConnectorType[] }>('list_connectors').catch(() => ({ connectors: [], catalog: [] })),
       ]);
       setState({
         workspace: me?.workspace,
@@ -55,6 +76,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         workspaces: ws?.workspaces ?? [],
         projects: pj?.projects ?? [],
         agents: dedupe(ag?.agents ?? []),
+        connectors: cn?.connectors ?? [],
+        catalog: cn?.catalog ?? [],
         loading: false,
       });
     } catch (e) {

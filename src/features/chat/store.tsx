@@ -35,6 +35,8 @@ export interface Conversation {
   title: string;
   target: Target;
   workspace?: string;
+  /** Connector ids switched on for this conversation (from the composer's + menu). */
+  connectors?: string[];
   conversationId?: string;
   turns: Turn[];
   updatedAt: number;
@@ -72,7 +74,8 @@ function load(): Conversation[] {
 interface ChatState {
   conversations: Conversation[];
   get: (id: string) => Conversation | undefined;
-  start: (target: Target, question: string, workspace?: string) => string;
+  start: (target: Target, question: string, workspace?: string, connectors?: string[]) => string;
+  setConnectors: (id: string, connectors: string[]) => void;
   send: (id: string, question: string) => void;
   remove: (id: string) => void;
 }
@@ -110,6 +113,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           conv.target.kind === 'project'
             ? { tool: 'ask_project', args: { message: turn.question, project: conv.target.name } }
             : { tool: 'run_agent', args: { agent: conv.target.id || conv.target.name, message: turn.question } };
+        // TODO(dev MCP): pass conv.connectors once ask_project/run_agent take a connectors argument.
+        // The Gateway rejects unknown arguments, so they are only shown in the UI for now.
         const args: Record<string, unknown> = { ...base.args };
         if (conv.conversationId) args.conversation_id = conv.conversationId;
         else args.new_conversation = true;
@@ -142,13 +147,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 
   const start = useCallback(
-    (target: Target, question: string, workspace?: string) => {
+    (target: Target, question: string, workspace?: string, connectors: string[] = []) => {
       const turn: Turn = { id: uid('t'), question, state: 'running', steps: [], citations: [] };
       const conv: Conversation = {
         id: uid('c'),
         title: question.length > 60 ? question.slice(0, 57) + '…' : question,
         target,
         workspace,
+        connectors,
         turns: [turn],
         updatedAt: Date.now(),
       };
@@ -176,10 +182,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [run],
   );
 
+  const setConnectors = useCallback(
+    (id: string, ids: string[]) => setConversations((list) => list.map((c) => (c.id === id ? { ...c, connectors: ids } : c))),
+    [],
+  );
+
   const remove = useCallback((id: string) => setConversations((list) => list.filter((c) => c.id !== id)), []);
   const get = useCallback((id: string) => conversations.find((c) => c.id === id), [conversations]);
 
-  return <Ctx.Provider value={{ conversations, get, start, send, remove }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ conversations, get, start, send, remove, setConnectors }}>{children}</Ctx.Provider>;
 }
 
 export function useChats(): ChatState {

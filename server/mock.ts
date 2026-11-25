@@ -162,7 +162,7 @@ const recentRuns = [
 const tools: { name: string; description: string; inputSchema: unknown }[] = [
   'whoami', 'list_workspaces', 'list_projects', 'ask_project', 'get_run', 'find_agents', 'agent_details',
   'agent_versions', 'run_agent', 'list_schedules', 'schedule_agent', 'control_schedule', 'recent_runs',
-  'source_status', 'connect_source', 'design_agent', 'get_design', 'save_agent', 'knowledge_graph', 'governance_summary', 'audit_log',
+  'source_status', 'connect_source', 'design_agent', 'get_design', 'save_agent', 'list_connectors', 'knowledge_graph', 'governance_summary', 'audit_log',
 ].map((name) => ({ name, description: `Mock ${name}`, inputSchema: { type: 'object', properties: {} } }));
 
 // ---------- knowledge graph (GUESS: no observed shape yet) ----------
@@ -196,6 +196,32 @@ const graph = {
     ['q3', 'ai-studio', 'launched'],
   ].map(([source, target, label]) => ({ source, target, label })),
 };
+
+// ---------- connectors (GUESS: tool name and shape not seen on the MCP yet) ----------
+const connectors = [
+  { id: 'cn-gmail-sales', type: 'gmail', name: 'Sales inbox', account: 'sales@ mailbox', status: 'connected', scope: 'workspace', access: 'read', tools: 6, projects: ['AI-Marketing'] },
+  { id: 'cn-slack-pm', type: 'slack', name: 'ai/Studio Slack', account: '#ai-aistudio-pm, #ai-aistudio-pm-followup', status: 'connected', scope: 'workspace', access: 'read_write', tools: 9, projects: ['AI-aiStudio-PM'] },
+  { id: 'cn-teamdocs', type: 'mcp', name: 'TeamDocs MCP', account: 'ai-studio › ai-pm-corner', status: 'connected', scope: 'workspace', access: 'read_write', tools: 24, projects: ['AI-aiStudio-PM'] },
+  { id: 'cn-pg-orders', type: 'postgresql', name: 'Orders DB', account: 'orders-replica · read replica', status: 'connected', scope: 'project', access: 'read', tools: 3, projects: ['PureAI'] },
+  { id: 'cn-turso', type: 'sql', name: 'Campaign workspace', account: 'Turso · leadgen', status: 'connected', scope: 'project', access: 'read_write', tools: 4, projects: ['AI-Marketing'] },
+  { id: 'cn-mongo', type: 'mongodb', name: 'Events store', account: 'events cluster', status: 'needs_auth', scope: 'project', access: 'read', tools: 3, projects: ['PureAI'] },
+  { id: 'cn-sharepoint', type: 'sharepoint', name: 'PureAI SharePoint', account: 'pureai.sharepoint.com', status: 'connected', scope: 'project', access: 'read', tools: 4, projects: ['PureAI'] },
+];
+const connectorCatalog = [
+  { type: 'gmail', label: 'Gmail', group: 'Apps', about: 'Read and draft email' },
+  { type: 'outlook', label: 'Outlook', group: 'Apps', about: 'Mail and calendar' },
+  { type: 'slack', label: 'Slack', group: 'Apps', about: 'Channels, threads and posting' },
+  { type: 'teams', label: 'Microsoft Teams', group: 'Apps', about: 'Chats and channels' },
+  { type: 'sharepoint', label: 'SharePoint', group: 'Files', about: 'Sites and libraries' },
+  { type: 'onedrive', label: 'OneDrive', group: 'Files', about: 'Your files' },
+  { type: 'gdrive', label: 'Google Drive', group: 'Files', about: 'My Drive and shared drives' },
+  { type: 'postgresql', label: 'PostgreSQL', group: 'Data', about: 'Query tables, read-only by default' },
+  { type: 'mysql', label: 'MySQL', group: 'Data', about: 'Query tables' },
+  { type: 'sql', label: 'SQL Server / Turso', group: 'Data', about: 'Any SQL database' },
+  { type: 'mongodb', label: 'MongoDB', group: 'Data', about: 'Collections and aggregations' },
+  { type: 'rest', label: 'REST API', group: 'Custom', about: 'Any HTTP API with an OpenAPI spec' },
+  { type: 'mcp', label: 'MCP server', group: 'Custom', about: 'Any remote MCP server by URL' },
+];
 
 // ---------- agent designer (GUESS: get_design shape not observed yet) ----------
 const designs = new Map<string, { request: string; stage: 'plan' | 'questions' | 'design'; approved?: boolean; answers?: Record<string, unknown> }>();
@@ -307,6 +333,8 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
         ],
         tags: [{ tag: 'v1.2', version: 'c41f' }],
       });
+    case 'list_connectors':
+      return ok({ connectors, catalog: connectorCatalog });
     case 'design_agent': {
       const id = str('design_id') ?? `design-${++seq}`;
       if (!designs.has(id)) designs.set(id, { request: str('request') ?? 'helps the team', stage: 'plan' });

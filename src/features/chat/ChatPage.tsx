@@ -19,6 +19,7 @@ export function NewChatPage() {
   const { start } = useChats();
   const nav = useNavigate();
   const [target, setTarget] = useState<Target | null>(null);
+  const [connectors, setConnectors] = useState<string[]>([]);
 
   useEffect(() => {
     if (target || projects.length === 0) return;
@@ -27,7 +28,7 @@ export function NewChatPage() {
   }, [projects, defaultProject, target]);
 
   const ask = (text: string) => {
-    if (target) nav(`/c/${start(target, text, workspace)}`);
+    if (target) nav(`/c/${start(target, text, workspace, connectors)}`);
   };
 
   const ideas: { icon: IconName; label: string; go: () => void }[] = [
@@ -43,7 +44,7 @@ export function NewChatPage() {
         <h1 className="as-greeting">
           <span className="greeting-mark">✳</span> {greeting(session?.user?.name)}
         </h1>
-        <Composer target={target} onTargetChange={setTarget} onSubmit={ask} autoFocus />
+        <Composer target={target} onTargetChange={setTarget} onSubmit={ask} autoFocus connectors={connectors} onConnectorsChange={setConnectors} />
         <div className="ideas">
           {ideas.map((i) => (
             <button key={i.label} type="button" className="idea" onClick={i.go}>
@@ -58,7 +59,7 @@ export function NewChatPage() {
 
 export function ConversationPage() {
   const { id = '' } = useParams();
-  const { get, send } = useChats();
+  const { get, send, setConnectors } = useChats();
   const conv = get(id);
   const end = useRef<HTMLDivElement>(null);
   const turns = conv?.turns.length ?? 0;
@@ -89,7 +90,15 @@ export function ConversationPage() {
           <div ref={end} />
         </div>
       </div>
-      <Composer target={conv.target} lockTarget onSubmit={(t) => send(conv.id, t)} disabled={busy} placeholder="Reply…" />
+      <Composer
+        target={conv.target}
+        lockTarget
+        onSubmit={(t) => send(conv.id, t)}
+        disabled={busy}
+        placeholder="Reply…"
+        connectors={conv.connectors ?? []}
+        onConnectorsChange={(ids) => setConnectors(conv.id, ids)}
+      />
     </div>
   );
 }

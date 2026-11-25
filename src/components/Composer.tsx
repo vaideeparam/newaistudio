@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { useStudio } from '../app/studio';
+import { ConnectorLogo } from './ConnectorLogo';
 import type { Target } from '../features/chat/store';
 import { Icon } from './Icon';
 
@@ -12,9 +14,14 @@ interface Props {
   autoFocus?: boolean;
   /** Once a conversation has started its target is fixed, like a model in Claude web. */
   lockTarget?: boolean;
+  /** Connector ids switched on for this conversation. */
+  connectors?: string[];
+  onConnectorsChange?: (ids: string[]) => void;
 }
 
-export function Composer({ target, onTargetChange, onSubmit, placeholder, disabled, autoFocus, lockTarget }: Props) {
+export function Composer({ target, onTargetChange, onSubmit, placeholder, disabled, autoFocus, lockTarget, connectors = [], onConnectorsChange }: Props) {
+  const { connectors: all } = useStudio();
+  const on = all.filter((c) => connectors.includes(c.id));
   const [text, setText] = useState('');
   const [picker, setPicker] = useState(false);
   const [plus, setPlus] = useState(false);
@@ -56,19 +63,36 @@ export function Composer({ target, onTargetChange, onSubmit, placeholder, disabl
       />
       <div className="as-composer__bar">
         <div className="pop-anchor">
-          <button type="button" className="as-btn as-btn--ghost as-icon-btn" aria-label="Add files or connect a source" onClick={() => setPlus((v) => !v)}>
+          <button
+            type="button"
+            className={`as-btn as-btn--ghost as-icon-btn${plus ? ' is-pressed' : ''}`}
+            aria-label="Add files, or switch connectors on"
+            aria-expanded={plus}
+            onClick={() => setPlus((v) => !v)}
+          >
             <Icon name="plus" />
           </button>
           {plus && (
-            <div className="as-menu pop pop--up" onMouseLeave={() => setPlus(false)}>
-              <div className="as-menu__item"><Icon name="upload" /> Upload files</div>
-              <div className="as-menu__item"><Icon name="plug" /> Connect OneDrive or SharePoint</div>
-              <div className="as-menu__item"><Icon name="plug" /> Connect Google Drive</div>
-              <div className="as-menu__item"><Icon name="doc" /> Paste text as a document</div>
-            </div>
+            <PlusMenu
+              selected={connectors}
+              onToggle={
+                onConnectorsChange
+                  ? (id) => onConnectorsChange(connectors.includes(id) ? connectors.filter((x) => x !== id) : [...connectors, id])
+                  : undefined
+              }
+              onClose={() => setPlus(false)}
+            />
           )}
         </div>
         <TargetChip target={target} open={picker} setOpen={setPicker} onChange={onTargetChange} locked={lockTarget} />
+        {on.length > 0 && (
+          <div className="cn-on" title={on.map((c) => c.name).join(', ')}>
+            {on.slice(0, 4).map((c) => (
+              <ConnectorLogo key={c.id} type={c.type} size={20} />
+            ))}
+            <span>{on.length === 1 ? on[0]!.name : `${on.length} connectors`}</span>
+          </div>
+        )}
         <span className="as-spacer" />
         <button type="button" className="as-send" aria-label="Send" disabled={!text.trim() || disabled || !target} onClick={submit}>
           <Icon name="send" />
@@ -137,6 +161,65 @@ function TargetChip({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function PlusMenu({ selected, onToggle, onClose }: { selected: string[]; onToggle?: (id: string) => void; onClose: () => void }) {
+  const { connectors } = useStudio();
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const down = (e: MouseEvent) => {
+      if (ref.current && !ref.current.parentElement?.contains(e.target as Node)) onClose();
+    };
+    const key = (e: globalThis.KeyboardEvent) => e.key === 'Escape' && onClose();
+    document.addEventListener('mousedown', down);
+    document.addEventListener('keydown', key);
+    return () => {
+      document.removeEventListener('mousedown', down);
+      document.removeEventListener('keydown', key);
+    };
+  }, [onClose]);
+
+  return (
+    <div ref={ref} className="as-menu pop pop--up plus-menu">
+      <div className="as-menu__item">
+        <Icon name="upload" /> Add files from your computer
+      </div>
+      <div className="as-menu__item">
+        <Icon name="doc" /> Paste text as a document
+      </div>
+      <div className="plus-menu__sep" />
+      <div className="as-label target-menu__head">Connectors</div>
+      {connectors.length === 0 && <div className="muted small plus-menu__empty">None connected yet.</div>}
+      <div className="plus-menu__list">
+        {connectors.map((c) => {
+          const ready = c.status === 'connected';
+          const isOn = selected.includes(c.id);
+          return (
+            <div key={c.id} className={`as-menu__item cn-item${ready ? '' : ' is-off'}`} onClick={() => ready && onToggle?.(c.id)}>
+              <ConnectorLogo type={c.type} size={24} />
+              <span className="cn-item__text">
+                <span className="cn-item__name">{c.name}</span>
+                <span className="cn-item__sub">{ready ? c.account : 'Sign-in expired'}</span>
+              </span>
+              {ready ? (
+                onToggle && (
+                  <span role="switch" aria-checked={isOn} className={`switch switch--sm${isOn ? ' is-on' : ''}`}>
+                    <span />
+                  </span>
+                )
+              ) : (
+                <span className="cn-item__fix">Reconnect</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="plus-menu__sep" />
+      <Link to="/connectors" className="as-menu__item" onClick={onClose}>
+        <Icon name="plug" /> Manage connectors
+      </Link>
     </div>
   );
 }
