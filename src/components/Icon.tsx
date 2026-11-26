@@ -12,6 +12,7 @@ const paths: Record<string, string> = {
   chevron: 'M6 4l4 4-4 4',
   down: 'M4 6l4 4 4-4',
   doc: 'M4.5 2.5h4.5l2.5 2.5v8.5h-7zM9 2.5V5h2.5',
+  menu: 'M2.5 4.5h11M2.5 8h11M2.5 11.5h11',
   plug: 'M6 2.5v3M10 2.5v3M4.5 5.5h7v2a3.5 3.5 0 0 1-7 0zM8 11v2.5',
   play: 'M5 3.5v9l7-4.5z',
   pause: 'M5.5 3.5v9M10.5 3.5v9',

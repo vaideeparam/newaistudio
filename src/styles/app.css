@@ -436,3 +436,41 @@ textarea.field__input { resize: vertical; }
 .as-callout--error { padding: 8px 12px; border-radius: var(--radius-sm); background: rgba(180, 60, 40, .1); color: #8a2f1f; font-size: var(--font-size-sm); }
 .ver-pick { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); }
 .ver-pick select { padding: 4px 8px; }
+.agents-filter { margin: 0 0 var(--space-4); }
+.agent-card__foot { display: flex; gap: 8px; align-items: center; margin-top: auto; padding-top: 8px; }
+.pill--draft { background: rgba(214, 160, 60, .18); color: #7a5410; }
+
+/* ---------- Composer stop ---------- */
+.as-send--stop { opacity: 1; }
+.stop-square { width: 10px; height: 10px; border-radius: 2px; background: currentColor; display: block; }
+
+/* ---------- Phones and small tablets ---------- */
+.mobile-bar { display: none; }
+.as-app { height: 100dvh; }
+@media (max-width: 768px) {
+  .as-app, .as-app--with-panel { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .mobile-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; padding-top: max(6px, env(safe-area-inset-top)); border-bottom: 1px solid var(--color-border); background: var(--color-bg); position: sticky; top: 0; z-index: 20; }
+  .as-root .as-sidebar { display: flex; position: fixed; inset: 0 auto 0 0; width: min(300px, 84vw); z-index: 40; transform: translateX(-100%); transition: transform .2s ease; box-shadow: var(--shadow-popover); }
+  .as-root.is-drawer-open .as-sidebar { transform: none; }
+  .drawer-scrim { position: fixed; inset: 0; background: rgba(25, 23, 18, .35); z-index: 30; }
+  .as-root .as-panel { display: flex; flex-direction: column; position: fixed; inset: auto 0 0 0; max-height: 85dvh; z-index: 45; border-radius: 14px 14px 0 0; box-shadow: var(--shadow-popover); }
+  .as-main { min-width: 0; overflow-y: auto; }
+  /* iOS zooms into any field under 16px: keep every field at 16px. */
+  input, select, textarea, .as-composer__input, .field__input { font-size: 16px !important; }
+  .page, .page--wide { padding: var(--space-4) var(--space-3); max-width: 100%; }
+  .page__head { flex-direction: column; align-items: stretch; gap: var(--space-3); }
+  .page__actions { flex-wrap: wrap; }
+  .grid { grid-template-columns: 1fr; }
+  .design-opts { width: 100%; }
+  .design-project { min-width: 0; flex: 1; }
+  .design-chat { min-height: 0; }
+  .save-row { flex-wrap: wrap; }
+  .save-row .save-tag { max-width: none; flex: 1; }
+  .orch__tools { grid-template-columns: 1fr; }
+  .atable { display: block; overflow-x: auto; }
+  .ideas { flex-wrap: wrap; }
+  .tabs { overflow-x: auto; flex-wrap: nowrap; }
+  .preview-note { flex-wrap: wrap; }
+  .as-composer { margin-bottom: env(safe-area-inset-bottom); }
+}
+.as-turn--user { white-space: pre-wrap; }

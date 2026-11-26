@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { normalizeCitations } from '../ask/citations';
 import type { Citation } from '../ask/types';
 import { callTool } from '../../lib/mcp';
@@ -97,6 +97,8 @@ interface ChatState {
   setConnectors: (id: string, connectors: string[]) => void;
   send: (id: string, question: string) => void;
   remove: (id: string) => void;
+  /** Stop the running turn: cancels the run on Studio and keeps what was asked. */
+  stop: (id: string) => void;
 }
 
 const Ctx = createContext<ChatState | null>(null);
@@ -115,6 +117,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, [conversations]);
 
+  const stopped = useRef(new Set<string>());
   const patchTurn = useCallback((convId: string, turnId: string, patch: Partial<Turn>, convPatch: Partial<Conversation> = {}) => {
     setConversations((list) =>
       list.map((c) =>
@@ -146,10 +149,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         let r = await callTool<RunResponse>(base.tool, args);
         let polls = 0;
         while (r?.status === 'running' && r.run_id) {
+          if (stopped.current.has(turn.id)) return;
           patchTurn(conv.id, turn.id, { progress: r.progress, steps: r.steps ?? [], runId: r.run_id }, { conversationId: r.conversation_id });
           if (++polls > MAX_POLLS) throw new Error('Studio is still working on this. Ask again in a minute.');
           r = await callTool<RunResponse>('get_run', { run_id: r.run_id });
         }
+        if (stopped.current.has(turn.id)) return;
         patchTurn(
           conv.id,
           turn.id,
@@ -164,6 +169,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           { conversationId: r?.conversation_id ?? conv.conversationId },
         );
       } catch (e) {
+        if (stopped.current.has(turn.id)) return;
         patchTurn(conv.id, turn.id, { state: 'error', error: e instanceof Error ? e.message : String(e) });
       }
     },
@@ -212,10 +218,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const stop = useCallback(
+    (id: string) => {
+      const conv = conversations.find((c) => c.id === id);
+      const turn = conv?.turns.find((t) => t.state === 'running');
+      if (!conv || !turn) return;
+      stopped.current.add(turn.id);
+      patchTurn(conv.id, turn.id, { state: 'error', error: 'Stopped.' });
+      if (turn.runId) void callTool('cancel_run', { run_id: turn.runId }).catch(() => undefined);
+    },
+    [conversations, patchTurn],
+  );
+
   const remove = useCallback((id: string) => setConversations((list) => list.filter((c) => c.id !== id)), []);
   const get = useCallback((id: string) => conversations.find((c) => c.id === id), [conversations]);
 
-  return <Ctx.Provider value={{ conversations, get, start, send, remove, setConnectors }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ conversations, get, start, send, remove, setConnectors, stop }}>{children}</Ctx.Provider>;
 }
 
 export function useChats(): ChatState {

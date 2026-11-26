@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icon, type IconName } from '../components/Icon';
 import { Lockup } from '../components/Lockup';
 import { useChats } from '../features/chat/store';
@@ -44,10 +44,26 @@ export function AppFrame() {
   const { panel, close } = usePanel();
   const go = useNavigate();
   const role = workspaces.find((w) => w.name === workspace)?.role;
+  // Phones: the sidebar is a drawer, closed again after every navigation.
+  const [drawer, setDrawer] = useState(false);
+  const loc = useLocation();
+  useEffect(() => {
+    setDrawer(false);
+  }, [loc.pathname, loc.search]);
 
   return (
-    <div className={`as-app as-root${panel ? ' as-app--with-panel' : ''}`}>
-      <aside className="as-sidebar">
+    <div className={`as-app as-root${panel ? ' as-app--with-panel' : ''}${drawer ? ' is-drawer-open' : ''}`}>
+      <header className="mobile-bar">
+        <button type="button" className="as-btn as-btn--ghost as-icon-btn" aria-label="Open menu" aria-expanded={drawer} onClick={() => setDrawer(true)}>
+          <Icon name="menu" />
+        </button>
+        <Lockup size={15} />
+        <button type="button" className="as-btn as-btn--ghost as-icon-btn" aria-label="New chat" onClick={() => go('/')}>
+          <Icon name="plus" />
+        </button>
+      </header>
+      {drawer && <div className="drawer-scrim" onClick={() => setDrawer(false)} aria-hidden="true" />}
+      <aside className="as-sidebar" aria-label="Navigation">
         <div className="sidebar-head">
           <Lockup size={17} />
         </div>

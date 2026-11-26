@@ -59,7 +59,7 @@ export function NewChatPage() {
 
 export function ConversationPage() {
   const { id = '' } = useParams();
-  const { get, send, setConnectors } = useChats();
+  const { get, send, setConnectors, stop } = useChats();
   const conv = get(id);
   const end = useRef<HTMLDivElement>(null);
   const turns = conv?.turns.length ?? 0;
@@ -94,7 +94,8 @@ export function ConversationPage() {
         target={conv.target}
         lockTarget
         onSubmit={(t) => send(conv.id, t)}
-        disabled={busy}
+        running={busy}
+        onStop={() => stop(conv.id)}
         placeholder="Reply…"
         connectors={conv.connectors ?? []}
         onConnectorsChange={(ids) => setConnectors(conv.id, ids)}

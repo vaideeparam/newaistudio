@@ -6,10 +6,17 @@ import { Icon } from '../../components/Icon';
 export function AgentsPage() {
   const { agents, loading } = useStudio();
   const [q, setQ] = useState('');
+  const [show, setShow] = useState<'all' | 'published' | 'draft'>('all');
   const list = useMemo(
-    () => agents.filter((a) => (a.name + ' ' + (a.description ?? '')).toLowerCase().includes(q.toLowerCase())),
-    [agents, q],
+    () =>
+      agents.filter(
+        (a) =>
+          (show === 'all' || (a.status ?? 'published') === show) &&
+          (a.name + ' ' + (a.description ?? '') + ' ' + (a.project ?? '')).toLowerCase().includes(q.toLowerCase()),
+      ),
+    [agents, q, show],
   );
+  const drafts = agents.filter((a) => a.status === 'draft').length;
 
   return (
     <div className="page">
@@ -26,6 +33,13 @@ export function AgentsPage() {
         <Icon name="search" />
         <input placeholder={`Search ${agents.length} agents`} value={q} onChange={(e) => setQ(e.target.value)} />
       </label>
+      <div className="seg agents-filter" role="tablist">
+        {(['all', 'published', 'draft'] as const).map((f) => (
+          <button key={f} type="button" role="tab" aria-selected={show === f} className={show === f ? 'is-on' : ''} onClick={() => setShow(f)}>
+            {f === 'all' ? `All ${agents.length}` : f === 'published' ? 'Published' : `Drafts ${drafts}`}
+          </button>
+        ))}
+      </div>
       {loading && <p className="muted">Loading agents…</p>}
       <div className="grid">
         {list.map((a) => (
@@ -35,6 +49,10 @@ export function AgentsPage() {
             </div>
             <div className="as-card__title">{a.name}</div>
             <div className="as-card__meta clamp3">{a.description || 'No description yet.'}</div>
+            <div className="agent-card__foot">
+              {a.status === 'draft' && <span className="pill pill--draft">Draft</span>}
+              {a.project && <span className="muted small">{a.project}</span>}
+            </div>
           </Link>
         ))}
       </div>

@@ -17,15 +17,23 @@ interface Props {
   /** Connector ids switched on for this conversation. */
   connectors?: string[];
   onConnectorsChange?: (ids: string[]) => void;
+  /** A reply is being written: the send button becomes Stop. */
+  running?: boolean;
+  onStop?: () => void;
 }
 
-export function Composer({ target, onTargetChange, onSubmit, placeholder, disabled, autoFocus, lockTarget, connectors = [], onConnectorsChange }: Props) {
+/** Phones and tablets: Return adds a line, the send button sends (as in Claude's apps). */
+const touch = () => typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+
+export function Composer({ target, onTargetChange, onSubmit, placeholder, disabled, autoFocus, lockTarget, connectors = [], onConnectorsChange, running, onStop }: Props) {
   const { connectors: all } = useStudio();
   const on = all.filter((c) => connectors.includes(c.id));
   const [text, setText] = useState('');
   const [picker, setPicker] = useState(false);
   const [plus, setPlus] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
+  // IME (Japanese, Chinese, Korean, Indic keyboards): Enter confirms the word, it must never send.
+  const composing = useRef(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -34,18 +42,26 @@ export function Composer({ target, onTargetChange, onSubmit, placeholder, disabl
     el.style.height = Math.min(el.scrollHeight, 240) + 'px';
   }, [text]);
 
+  const canSend = !!text.trim() && !disabled && !running && !!target;
   const submit = () => {
-    const t = text.trim();
-    if (!t || disabled || !target) return;
-    onSubmit(t);
+    if (!canSend) return;
+    onSubmit(text.trim());
     setText('');
+    ref.current?.focus();
   };
 
+  /**
+   * Enter sends only when it can't be mistaken for anything else: not with
+   * Shift/Alt/Ctrl (new line), not mid-composition, not on a touch keyboard,
+   * and not while a reply is still being written (the text stays put).
+   */
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-      e.preventDefault();
-      submit();
-    }
+    if (e.key !== 'Enter') return;
+    if (e.shiftKey || e.altKey || e.ctrlKey) return;
+    if (composing.current || e.nativeEvent.isComposing || e.keyCode === 229) return;
+    if (touch()) return;
+    e.preventDefault();
+    if (e.metaKey || canSend) submit();
   };
 
   return (
@@ -59,6 +75,12 @@ export function Composer({ target, onTargetChange, onSubmit, placeholder, disabl
         placeholder={placeholder ?? 'Ask anything, or describe an agent to build…'}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={onKey}
+        onCompositionStart={() => (composing.current = true)}
+        onCompositionEnd={() => {
+          // Some browsers fire the confirming Enter's keydown right after compositionend.
+          setTimeout(() => (composing.current = false), 0);
+        }}
+        enterKeyHint="enter"
         aria-label="Message"
       />
       <div className="as-composer__bar">
@@ -94,9 +116,15 @@ export function Composer({ target, onTargetChange, onSubmit, placeholder, disabl
           </div>
         )}
         <span className="as-spacer" />
-        <button type="button" className="as-send" aria-label="Send" disabled={!text.trim() || disabled || !target} onClick={submit}>
-          <Icon name="send" />
-        </button>
+        {running && onStop ? (
+          <button type="button" className="as-send as-send--stop" aria-label="Stop" title="Stop" onClick={onStop}>
+            <span className="stop-square" />
+          </button>
+        ) : (
+          <button type="button" className="as-send" aria-label="Send" title="Send" disabled={!canSend} onClick={submit}>
+            <Icon name="send" />
+          </button>
+        )}
       </div>
     </div>
   );

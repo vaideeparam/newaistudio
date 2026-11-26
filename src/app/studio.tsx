@@ -12,6 +12,10 @@ export interface AgentSummary {
   id: string;
   name: string;
   description?: string;
+  /** From list_agents: draft | published (archived are left out). */
+  status?: string;
+  project?: string;
+  updated?: string;
 }
 /** A connection someone already set up: a named instance of a connector type. GUESS: shape not seen live. */
 export interface Connector {
@@ -71,13 +75,32 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         callTool<{ connectors?: Connector[]; catalog?: ConnectorType[] }>('list_connectors').catch(() => null),
       ]);
       const projectsList = pj?.projects ?? [];
+      // find_agents returns only agents people can run (published). list_agents per project adds
+      // drafts, so a mind you just saved shows up, with its project and status.
+      const perProject = await Promise.all(
+        projectsList.map((p) =>
+          callTool<{ agents?: AgentSummary[] }>('list_agents', { project: p.name })
+            .then((r) => (r?.agents ?? []).map((a) => ({ ...a, project: p.name })))
+            .catch(() => [] as AgentSummary[]),
+        ),
+      );
+      const byId = new Map<string, AgentSummary>();
+      for (const a of ag?.agents ?? []) byId.set(a.id, { status: 'published', ...a });
+      for (const a of perProject.flat()) {
+        if (a.status === 'archived') {
+          byId.delete(a.id);
+          continue;
+        }
+        byId.set(a.id, { ...byId.get(a.id), ...a, description: a.description || byId.get(a.id)?.description });
+      }
+      const allAgents = [...byId.values()].sort((x, y) => (y.updated ?? '').localeCompare(x.updated ?? ''));
       const cnList = cn ?? { connectors: await connectorsFromSources(projectsList), catalog: FILE_CATALOG };
       setState({
         workspace: me?.workspace,
         defaultProject: me?.default_project ?? undefined,
         workspaces: ws?.workspaces ?? [],
         projects: pj?.projects ?? [],
-        agents: dedupe(ag?.agents ?? []),
+        agents: allAgents,
         connectors: cnList.connectors ?? [],
         catalog: cnList.catalog ?? [],
         loading: false,
@@ -141,11 +164,6 @@ async function connectorsFromSources(projects: Project[]): Promise<Connector[]> 
     }
   }
   return out;
-}
-
-function dedupe(list: AgentSummary[]): AgentSummary[] {
-  const seen = new Set<string>();
-  return list.filter((a) => (seen.has(a.id) ? false : (seen.add(a.id), true)));
 }
 
 export function useStudio(): StudioState {
