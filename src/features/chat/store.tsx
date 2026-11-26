@@ -4,7 +4,7 @@ import type { Citation } from '../ask/types';
 import { callTool } from '../../lib/mcp';
 
 /** Who a message goes to. Chosen per conversation in the composer, not by a global switch. */
-export type Target = { kind: 'project'; name: string } | { kind: 'agent'; name: string; id: string; project?: string };
+export type Target = { kind: 'project'; name: string } | { kind: 'agent'; name: string; id: string; project?: string; version?: string };
 
 export interface RunStep {
   tool: string;
@@ -54,6 +54,23 @@ interface RunResponse {
   citations?: { source: string; page?: number | string; quote?: string }[];
   took_s?: number;
   cost_usd?: number;
+  /** needs_inputs / awaiting approval / failed runs explain themselves here. */
+  message?: string;
+  question?: string;
+  missing?: string[];
+  error?: string;
+  output?: unknown;
+}
+
+/** What to show when a run ends without a plain answer (form agents, questions, failures). */
+function fallbackText(r: RunResponse | undefined): string {
+  if (!r) return '';
+  if (r.error) return `The run failed: ${r.error}`;
+  if (r.status === 'needs_inputs') return `${r.message ?? 'This agent needs more inputs.'}${r.missing?.length ? ` Missing: ${r.missing.join(', ')}.` : ''}`;
+  if (r.question) return r.question;
+  if (r.message) return r.message;
+  if (r.output != null) return '```\n' + JSON.stringify(r.output, null, 2) + '\n```';
+  return '';
 }
 
 const KEY = 'studio.conversations.v1';
@@ -122,6 +139,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           args.inputs = conv.inputs;
           delete args.message;
         }
+        if (conv.target.kind === 'agent' && conv.target.version) args.version = conv.target.version;
         if (conv.conversationId) args.conversation_id = conv.conversationId;
         else args.new_conversation = true;
 
@@ -137,7 +155,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           turn.id,
           {
             state: 'done',
-            answer: r?.answer?.trim() ?? '',
+            answer: r?.answer?.trim() || fallbackText(r),
             citations: normalizeCitations(r?.citations),
             steps: r?.steps ?? [],
             tookS: r?.took_s,

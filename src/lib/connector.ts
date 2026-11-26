@@ -28,6 +28,15 @@ export const LIVE_TOOLS = [
   'search_documents',
   'design_agent',
   'get_design',
+  'save_agent',
+  'publish_agent',
+  'tag_agent_version',
+  'list_agents',
+  'cancel_run',
+  'answer_agent_question',
+  'resume_run',
+  'schedule_agent',
+  'control_schedule',
 ] as const;
 
 /** Screens whose backend tool doesn't exist yet: they keep sample data, labelled as such. */
