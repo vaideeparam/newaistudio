@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSession } from '../../app/session';
 import { useStudio } from '../../app/studio';
 import { Icon } from '../../components/Icon';
 import { callTool } from '../../lib/mcp';
@@ -35,6 +36,7 @@ const CONNECTORS = [
  * shows what was understood, and any node can be asked about directly.
  */
 export function KnowledgePage() {
+  const { session } = useSession();
   const { projects, defaultProject, workspace } = useStudio();
   const [project, setProject] = useState<string>('');
   const [sel, setSel] = useState<string | undefined>();
@@ -81,7 +83,10 @@ export function KnowledgePage() {
     <div className="page page--wide">
       <div className="page__head">
         <div>
-          <h1 className="as-display page__title">Knowledge</h1>
+          <h1 className="as-display page__title">
+            Knowledge
+            {session?.mode === 'connector' && <span className="sample-tag" title="No backend tool for this screen yet">Sample data</span>}
+          </h1>
           <p className="page__sub">Where your documents come from, and what Studio understood from them.</p>
         </div>
       </div>

@@ -1,14 +1,28 @@
-export type AuthMode = 'oauth' | 'token' | 'mock';
+/** `connector`: the published preview, reading the viewer's own ai/Studio through claude.ai. */
+export type AuthMode = 'oauth' | 'token' | 'mock' | 'connector';
 
 export interface SessionInfo {
   signedIn: boolean;
   mode: AuthMode;
   user?: { name: string; email?: string };
+  /** Why the preview is showing sample data instead of live data. */
+  note?: string;
 }
 
 export async function getSession(): Promise<SessionInfo> {
   if (import.meta.env.VITE_STATIC_MOCK === '1') {
     const { mockUser } = await import('../../server/mock');
+    const { bridge, liveCall } = await import('./connector');
+    const { setLive } = await import('./mcp');
+    if (await bridge()) {
+      try {
+        const who = await liveCall<{ you?: { name: string; email?: string } }>('whoami', {});
+        setLive(true);
+        return { signedIn: true, mode: 'connector', user: who.you };
+      } catch (e) {
+        return { signedIn: true, mode: 'mock', user: mockUser, note: (e as Error).message };
+      }
+    }
     return { signedIn: true, mode: 'mock', user: mockUser };
   }
   const res = await fetch('/api/auth/status', { credentials: 'same-origin' });

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Icon, type IconName } from '../components/Icon';
 import { Lockup } from '../components/Lockup';
@@ -21,6 +22,7 @@ const nav: { to: string; label: string; icon: IconName }[] = [
  * and the workspace is shown, not switched, at the foot of the sidebar.
  */
 export function AppFrame() {
+  const [noteHidden, setNoteHidden] = useState(false);
   const { session, signOut } = useSession();
   const { workspace, workspaces } = useStudio();
   const { conversations } = useChats();
@@ -66,7 +68,16 @@ export function AppFrame() {
                 {role && ` · ${role}`}
               </div>
             </div>
-            {session?.mode === 'mock' && <span className="mock-badge">Mock</span>}
+            {session?.mode === 'mock' && (
+              <span className="mock-badge" title={session.note ?? 'Sample data'}>
+                Sample
+              </span>
+            )}
+            {session?.mode === 'connector' && (
+              <span className="mock-badge mock-badge--live" title="Your live ai/Studio, through your claude.ai connector">
+                Live
+              </span>
+            )}
             {session?.mode === 'oauth' && (
               <button type="button" className="as-btn as-btn--ghost as-icon-btn" title="Sign out" onClick={() => void signOut()}>
                 <Icon name="close" size={14} />
@@ -77,6 +88,14 @@ export function AppFrame() {
       </aside>
 
       <main className="as-main">
+        {session?.note && !noteHidden && (
+          <div className="preview-note" role="status">
+            <span>Showing sample data. {session.note}</span>
+            <button type="button" onClick={() => setNoteHidden(true)}>
+              Dismiss
+            </button>
+          </div>
+        )}
         <Outlet />
       </main>
 

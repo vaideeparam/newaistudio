@@ -37,8 +37,26 @@ interface Envelope<T> {
  * Used to publish a clickable preview; never set for a real deployment.
  */
 export const STATIC_MOCK = import.meta.env.VITE_STATIC_MOCK === '1';
+import { LIVE_TOOLS, SAMPLE_ONLY, liveCall } from './connector';
+
+/** Set once the session decides: the preview is reading the viewer's live ai/Studio. */
+let live = false;
+export function setLive(v: boolean) {
+  live = v;
+}
 
 async function staticCall<T>(name: string, args: Record<string, unknown>): Promise<T> {
+  if (live && !SAMPLE_ONLY.has(name)) {
+    if (!(LIVE_TOOLS as readonly string[]).includes(name)) {
+      // Not available live (e.g. list_connectors): fail so the screen uses its live fallback.
+      throw new McpToolError(name, `${name} is not available on this connector`);
+    }
+    try {
+      return await liveCall<T>(name, args);
+    } catch (e) {
+      throw new McpToolError(name, (e as Error).message, e);
+    }
+  }
   const { mockCallTool } = await import('../../server/mock');
   const out = await mockCallTool(name, args);
   if (out.isError) throw new McpToolError(name, typeof out.data === 'string' ? out.data : `Tool ${name} failed`, out.data);

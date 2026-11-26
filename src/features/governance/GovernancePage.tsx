@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSession } from '../../app/session';
 import { useStudio } from '../../app/studio';
 import { Icon } from '../../components/Icon';
 import { useTool } from '../../lib/useTool';
@@ -32,6 +33,7 @@ const SECTIONS = [
  * setting sits on a row with its control on the right.
  */
 export function GovernancePage() {
+  const { session } = useSession();
   const { workspaces, connectors } = useStudio();
   const g = useTool<Summary>('governance_summary');
   const audit = useTool<Audit>('audit_log');
@@ -78,7 +80,10 @@ export function GovernancePage() {
     <div className="page gov2-page">
       <div className="gov2">
         <nav className="gov2__nav" aria-label="Governance sections">
-          <h1 className="as-display gov2__title">Governance</h1>
+          <h1 className="as-display gov2__title">
+            Governance
+            {session?.mode === 'connector' && <span className="sample-tag" title="No backend tool for this screen yet">Sample data</span>}
+          </h1>
           {SECTIONS.map((x) => (
             <button key={x.id} type="button" className={`gov2__link${active === x.id ? ' is-on' : ''}`} onClick={() => go(x.id)}>
               {x.label}
