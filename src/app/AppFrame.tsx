@@ -23,6 +23,21 @@ const nav: { to: string; label: string; icon: IconName }[] = [
  */
 export function AppFrame() {
   const [noteHidden, setNoteHidden] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [liveErr, setLiveErr] = useState<string | null>(null);
+  /** A click lets claude.ai show its permission prompt; on success reload so every screen reads live. */
+  const goLive = async () => {
+    setConnecting(true);
+    setLiveErr(null);
+    try {
+      const { liveCall } = await import('../lib/connector');
+      await liveCall('whoami', {});
+      window.location.reload();
+    } catch (e) {
+      setLiveErr(e instanceof Error ? e.message : String(e));
+      setConnecting(false);
+    }
+  };
   const { session, signOut } = useSession();
   const { workspace, workspaces } = useStudio();
   const { conversations } = useChats();
@@ -90,7 +105,14 @@ export function AppFrame() {
       <main className="as-main">
         {session?.note && !noteHidden && (
           <div className="preview-note" role="status">
-            <span>Showing sample data. {session.note}</span>
+            <span>
+              <b>Not live: showing sample data.</b> {liveErr ?? session.note}
+            </span>
+            {session.retryLive && (
+              <button type="button" className="preview-note__go" onClick={() => void goLive()} disabled={connecting}>
+                {connecting ? 'Connecting…' : 'Connect live data'}
+              </button>
+            )}
             <button type="button" onClick={() => setNoteHidden(true)}>
               Dismiss
             </button>

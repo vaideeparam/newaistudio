@@ -36,6 +36,8 @@ input, select, textarea { font: inherit; color: inherit; }
 .mock-badge { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: var(--amber); color: var(--ink); }
 .mock-badge.mock-badge--live { background: var(--green-glow); color: var(--green); }
 .preview-note { display: flex; gap: 12px; align-items: center; font-size: 13px; padding: 8px 16px; background: var(--amber); color: var(--ink); }
+.preview-note .preview-note__go { margin-left: auto; text-decoration: none; background: var(--ink); color: var(--paper, #f3f1e9); padding: 4px 10px; border-radius: 6px; }
+.preview-note .preview-note__go + button { margin-left: 0; }
 .preview-note button { margin-left: auto; background: none; border: 0; cursor: pointer; color: inherit; font: inherit; text-decoration: underline; }
 .sample-tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: var(--amber); color: var(--ink); vertical-align: middle; margin-left: 8px; }
 

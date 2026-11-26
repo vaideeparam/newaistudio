@@ -8,8 +8,11 @@
  * everything falls back to the built-in sample data.
  */
 
-/** Display name of the connector in claude.ai. */
-export const CONNECTOR = import.meta.env.VITE_STUDIO_CONNECTOR ?? 'Param ai Studio Gateway MCP';
+/** Display name of the connector in claude.ai, exactly as Settings › Connectors shows it. */
+export const CONNECTOR = import.meta.env.VITE_STUDIO_CONNECTOR ?? 'Param ai/Studio Gateway MCP';
+
+/** True when the page runs inside a claude.ai viewer (live data is possible). */
+export const inViewer = () => Boolean((window as unknown as ClaudeWindow).claude?.use);
 
 /** Gateway tools the preview may call live. Must match the published manifest. */
 export const LIVE_TOOLS = [
@@ -83,8 +86,10 @@ export function explain(e: unknown): string {
       return 'ai/Studio did not answer in time. Try again in a moment.';
     case 'tool_error':
       return err.message ?? 'ai/Studio reported an error.';
+    case 'unavailable':
+      return err.message ?? 'Live data is only available inside claude.ai.';
     default:
-      return err.message ?? 'The ai/Studio connector failed.';
+      return `${err.message ?? 'The ai/Studio connector failed.'}${err.code ? ` (${err.code})` : ''}`;
   }
 }
 
@@ -101,7 +106,7 @@ export class ConnectorError extends Error {
 /** Call one Gateway tool through the viewer's connector and return its JSON payload. */
 export async function liveCall<T>(tool: string, args: Record<string, unknown>): Promise<T> {
   const mcp = await bridge();
-  if (!mcp) throw new ConnectorError('unavailable', 'Live data is only available inside claude.ai.');
+  if (!mcp) throw new ConnectorError('unavailable', 'This view did not grant the page access to your connectors. Open the page in claude.ai and allow ai/Studio from its Permissions menu.');
   try {
     const r = await mcp.callTool(CONNECTOR, tool, args);
     return r.payload as T;

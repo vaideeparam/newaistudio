@@ -7,23 +7,25 @@ export interface SessionInfo {
   user?: { name: string; email?: string };
   /** Why the preview is showing sample data instead of live data. */
   note?: string;
+  /** The preview could go live: show a "Connect live data" button. */
+  retryLive?: boolean;
 }
 
 export async function getSession(): Promise<SessionInfo> {
   if (import.meta.env.VITE_STATIC_MOCK === '1') {
     const { mockUser } = await import('../../server/mock');
-    const { bridge, liveCall } = await import('./connector');
+    const { inViewer, liveCall } = await import('./connector');
     const { setLive } = await import('./mcp');
-    if (await bridge()) {
-      try {
-        const who = await liveCall<{ you?: { name: string; email?: string } }>('whoami', {});
-        setLive(true);
-        return { signedIn: true, mode: 'connector', user: who.you };
-      } catch (e) {
-        return { signedIn: true, mode: 'mock', user: mockUser, note: (e as Error).message };
-      }
+    // Outside claude.ai (a saved file, local preview) the sample data is expected; say nothing.
+    if (!inViewer()) return { signedIn: true, mode: 'mock', user: mockUser };
+    try {
+      const who = await liveCall<{ you?: { name: string; email?: string } }>('whoami', {});
+      setLive(true);
+      return { signedIn: true, mode: 'connector', user: who.you };
+    } catch (e) {
+      // Never fall back silently: the banner says why and offers a retry.
+      return { signedIn: true, mode: 'mock', user: mockUser, note: (e as Error).message, retryLive: true };
     }
-    return { signedIn: true, mode: 'mock', user: mockUser };
   }
   const res = await fetch('/api/auth/status', { credentials: 'same-origin' });
   if (!res.ok) throw new Error(`Could not reach the ai/Studio server (${res.status})`);
