@@ -1,15 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePanel } from '../../app/panel';
 import { Icon } from '../../components/Icon';
 import { Receipt } from '../../components/Receipt';
 import { AnswerView } from '../ask/AnswerView';
 import { ArtefactCards } from './Artefacts';
-import type { Conversation, Turn } from './store';
+import { useChats, type Conversation, type Turn } from './store';
 
 export function TurnView({ conv, turn }: { conv: Conversation; turn: Turn }) {
   const [showSteps, setShowSteps] = useState(false);
   const { open } = usePanel();
   const modelCalls = turn.steps.filter((s) => s.kind === 'model').length;
+  const { hydrate } = useChats();
+  // Older answers were saved without their pages: fetch them once if Studio still has the run.
+  useEffect(() => {
+    if (turn.state === 'done' && turn.runId && turn.artefacts === undefined) hydrate(conv.id, turn.id, turn.runId);
+  }, [turn.state, turn.runId, turn.artefacts, conv.id, turn.id, hydrate]);
 
   return (
     <>

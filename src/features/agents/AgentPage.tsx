@@ -58,8 +58,10 @@ export function AgentPage() {
   const versions = useTool<Versions>('agent_versions', { agent: key, limit: 5 });
   const runs = useTool<Runs>('recent_runs', { agent: key, limit: 6 });
   const sched = useTool<Schedules>('list_schedules', { agent: key });
-  const { start } = useChats();
+  const { start, reopen } = useChats();
   const nav = useNavigate();
+  const open = (r: { run_id: string; summary?: string; when: string }) =>
+    nav(`/c/${reopen({ kind: 'agent', name: d?.name ?? key, id: d?.id ?? id, project: d?.project ?? summary?.project }, r.run_id, r.summary ?? `Run of ${fmt(r.when)}`, workspace)}`);
   const [tab, setTab] = useState<'flow' | 'contract' | 'runs'>('flow');
   const d = details.data;
   const def = fullDef(d?.definition);
@@ -187,12 +189,12 @@ export function AgentPage() {
         {(runs.data?.runs?.length ?? 0) > 0 && (
           <section className="agent-sec">
             <div className="as-label sub-head">Recent</div>
-            {runs.data!.runs!.slice(0, 5).map((r) => (
-              <div key={r.run_id} className="mini-row">
+            {runs.data!.runs!.slice(0, 6).map((r) => (
+              <button key={r.run_id} type="button" className="mini-row mini-row--btn" onClick={() => open(r)} title="Open this run">
                 <span className={`dot dot--${r.status}`} />
                 <span className="mini-row__main">{r.summary ?? r.kind}</span>
                 <span className="muted small">{fmt(r.when)}</span>
-              </div>
+              </button>
             ))}
           </section>
         )}
@@ -352,15 +354,16 @@ export function AgentPage() {
             <div>
               <div className="as-label sub-head">Recent runs</div>
               {runs.data?.runs?.map((r) => (
-                <div key={r.run_id} className="mini-row">
+                <button key={r.run_id} type="button" className="mini-row mini-row--btn" onClick={() => open(r)} title="Open this run">
                   <span className={`dot dot--${r.status}`} />
                   <span className="mini-row__main">{r.summary ?? r.kind}</span>
                   <span className="muted small as-mono">
                     {fmt(r.when)}
                     {r.cost_usd != null && ` · $${r.cost_usd.toFixed(3)}`}
                   </span>
-                </div>
+                </button>
               ))}
+              {runs.error && <p className="muted small">Studio lists run history for published agents only, so a draft's runs don't show here yet.</p>}
               <div className="as-label sub-head">Versions</div>
               {versions.data?.versions?.map((v) => (
                 <div key={v.version} className="mini-row">

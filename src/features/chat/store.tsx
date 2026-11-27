@@ -129,6 +129,8 @@ interface ChatState {
   remove: (id: string) => void;
   /** Stop the running turn: cancels the run on Studio and keeps what was asked. */
   stop: (id: string) => void;
+  reopen: (target: Target, runId: string, title: string, workspace?: string) => string;
+  hydrate: (convId: string, turnId: string, runId: string) => void;
 }
 
 const Ctx = createContext<ChatState | null>(null);
@@ -196,6 +198,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             tookS: r?.took_s,
             costUsd: r?.cost_usd ?? r?.cost?.usd,
             artefacts: artefactsOf(r),
+            runId: r?.run_id ?? turn.runId,
           },
           { conversationId: r?.conversation_id ?? conv.conversationId },
         );
@@ -244,6 +247,52 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [run],
   );
 
+  /**
+   * Reopen an earlier Studio run (from recent_runs) as a conversation here:
+   * get_run returns its answer, steps and pages again. Continuing it carries
+   * on the same Studio conversation.
+   */
+  const reopen = useCallback(
+    (target: Target, runId: string, title: string, workspace?: string) => {
+      const existing = conversations.find((c) => c.conversationId === runId || c.turns.some((t) => t.runId === runId));
+      if (existing) return existing.id;
+      const turn: Turn = { id: uid('t'), question: title, state: 'running', steps: [], citations: [], runId, progress: 'Opening this run from Studio' };
+      const conv: Conversation = { id: uid('c'), title, target, workspace, connectors: [], turns: [turn], conversationId: runId, updatedAt: Date.now() };
+      setConversations((list) => [conv, ...list]);
+      void callTool<RunResponse>('get_run', { run_id: runId })
+        .then((r) =>
+          patchTurn(conv.id, turn.id, {
+            state: 'done',
+            answer: r?.answer?.trim() || fallbackText(r),
+            citations: normalizeCitations(r?.citations),
+            steps: r?.steps ?? [],
+            tookS: r?.took_s,
+            costUsd: r?.cost_usd ?? r?.cost?.usd,
+            artefacts: artefactsOf(r),
+          }),
+        )
+        .catch((e) =>
+          patchTurn(conv.id, turn.id, {
+            state: 'error',
+            error: `Studio can't reopen this run any more (${e instanceof Error ? e.message : String(e)}). Its summary is kept in the agent's history.`,
+          }),
+        );
+      return conv.id;
+    },
+    [conversations, patchTurn],
+  );
+
+  /** Answers saved before pages were shown: fetch their pages from Studio once. */
+  const hydrate = useCallback(
+    (convId: string, turnId: string, runId: string) => {
+      patchTurn(convId, turnId, { artefacts: [] });
+      void callTool<RunResponse>('get_run', { run_id: runId })
+        .then((r) => patchTurn(convId, turnId, { artefacts: artefactsOf(r) }))
+        .catch(() => undefined);
+    },
+    [patchTurn],
+  );
+
   const setConnectors = useCallback(
     (id: string, ids: string[]) => setConversations((list) => list.map((c) => (c.id === id ? { ...c, connectors: ids } : c))),
     [],
@@ -264,7 +313,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const remove = useCallback((id: string) => setConversations((list) => list.filter((c) => c.id !== id)), []);
   const get = useCallback((id: string) => conversations.find((c) => c.id === id), [conversations]);
 
-  return <Ctx.Provider value={{ conversations, get, start, send, remove, setConnectors, stop }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ conversations, get, start, send, remove, setConnectors, stop, reopen, hydrate }}>{children}</Ctx.Provider>;
 }
 
 export function useChats(): ChatState {
