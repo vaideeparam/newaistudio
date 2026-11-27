@@ -25,6 +25,7 @@ runs, agent_details inputs with type/required). Shapes were last checked live on
 | J11 | Design a new mind | Designer replies with a plan to approve |
 | J12 | Routines | Schedules listed; no sideways scroll |
 | J13 | Persistence | A chat survives a reload |
+| J14 | Open a Studio page | Text-only page laid out as a document (title, sections, tiles, formulas); one scroll container so scrolling never stalls; a page with HTML fills the pane |
 
 ## Not yet automated
 

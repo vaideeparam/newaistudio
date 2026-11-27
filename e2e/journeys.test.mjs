@@ -199,6 +199,35 @@ for (const size of SIZES) {
     await done(p);
   });
 
+  test(`[${size}] J14 a Studio page opens laid out and scrolls smoothly`, async () => {
+    const p = await open(size, `/agents/${PM}`);
+    await p.getByRole('textbox', { name: 'Message' }).fill('weekly');
+    await p.getByRole('button', { name: 'Send' }).click();
+    // Text-only page (how live pages arrive today): laid out as a document, not lines of text.
+    await p.locator('.arte-card', { hasText: 'Threshold guide' }).click({ timeout: 10000 });
+    await p.locator('.arte-doc__title', { hasText: 'Choosing a decision threshold' }).waitFor();
+    assert.ok((await p.locator('.arte-doc__tile').count()) >= 6, 'short facts not shown as tiles');
+    assert.ok(await p.locator('.arte-doc__tile.is-formula').count(), 'formulas not set apart');
+    // One scroll container: the panel body itself must not scroll around the page.
+    const outer = await p.locator('.panel-body').evaluate((el) => el.scrollHeight - el.clientHeight);
+    assert.ok(outer <= 1, `panel body scrolls too (${outer}px), which stalls scrolling`);
+    const doc = p.locator('.arte-text');
+    await doc.hover();
+    await p.mouse.wheel(0, 600);
+    await p.waitForTimeout(300);
+    assert.ok((await doc.evaluate((el) => el.scrollTop)) > 0 || (await doc.evaluate((el) => el.scrollHeight <= el.clientHeight)), 'page did not scroll');
+    await shot(p, 'j14-page-text');
+    // A page that comes with its HTML opens in a frame that fills the pane.
+    await p.getByRole('button', { name: 'Close panel' }).click();
+    await p.locator('.arte-card', { hasText: 'Precision vs recall' }).click();
+    const frame = p.locator('.arte-frame');
+    await frame.waitFor();
+    const fb = await frame.boundingBox();
+    assert.ok(fb.height > p.viewportSize().height * 0.5, 'page frame is too short');
+    await shot(p, 'j14-page-html');
+    await done(p);
+  });
+
   test(`[${size}] J10 ask a project, with numbered sources`, async () => {
     const p = await open(size, '/');
     const box = p.getByRole('textbox', { name: 'Message' });

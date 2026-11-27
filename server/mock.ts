@@ -186,7 +186,7 @@ const recentRuns = [
 const tools: { name: string; description: string; inputSchema: unknown }[] = [
   'whoami', 'list_workspaces', 'list_projects', 'ask_project', 'get_run', 'find_agents', 'agent_details',
   'agent_versions', 'list_agents', 'run_agent', 'list_schedules', 'schedule_agent', 'control_schedule', 'recent_runs',
-  'source_status', 'connect_source', 'design_agent', 'get_design', 'save_agent', 'list_connectors', 'resolve_context', 'knowledge_graph', 'governance_summary', 'audit_log',
+  'source_status', 'show_artefact', 'connect_source', 'design_agent', 'get_design', 'save_agent', 'list_connectors', 'resolve_context', 'knowledge_graph', 'governance_summary', 'audit_log',
 ].map((name) => ({ name, description: `Mock ${name}`, inputSchema: { type: 'object', properties: {} } }));
 
 // ---------- knowledge graph (GUESS: no observed shape yet) ----------
@@ -628,10 +628,36 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
           { when: '2026-11-24T09:12:00Z', who: 'Vaidee Sethuraman', what: 'Shared PureAI with customer workspace (read only)', scope: 'PureAI', model_calls: 0, cost_usd: 0 },
         ],
       });
+    case 'show_artefact': {
+      // Live shape: the page's text only; the page itself is on the connector's card.
+      const key = str('artefact_key');
+      const content = key === 'sample-guide' ? GUIDE_TEXT : 'Precision vs recall\nTwo complementary metrics.';
+      return ok({ name: key, type: null, format: 'text of the page (the page is on the card)', content, note: 'Shown on the card.' });
+    }
     default:
       return fail(`Mock mode has no data for tool "${name}"`);
   }
 }
+
+const GUIDE_TEXT = [
+  'Choosing a decision threshold',
+  'A sample page: how the cut-off on a model score changes what it catches and what it gets wrong.',
+  'Score ≥ t → positive',
+  'Lower t catches more',
+  'Higher t flags less',
+  'Why the threshold matters',
+  'Every classifier that outputs a score needs a cut-off. Move it down and the model flags more cases, so it misses fewer but raises more false alarms. Move it up and the opposite happens.',
+  'At a glance',
+  'Sample model',
+  'Precision 0.82',
+  'Recall 0.67',
+  'F1 0.74',
+  'Formulas',
+  'Precision = TP / (TP+FP)',
+  'Recall = TP / (TP+FN)',
+  'F1 = 2 × (P×R) / (P+R)',
+  'Generated in a sample run. AI can make mistakes.',
+].join('\n');
 
 /** Sample of a rich agent answer, shaped like the live ML Explainer run (2026-11-27): markdown + an html artefact. */
 function richAgentAnswer() {
@@ -644,7 +670,11 @@ function richAgentAnswer() {
       '### Threshold sweep\n\n| Threshold | Precision | Recall |\n|---|---|---|\n| 0.3 | 0.61 | 0.91 |\n| 0.5 | 0.74 | 0.80 |\n| 0.7 | 0.82 | 0.67 |\n| 0.9 | 0.93 | 0.38 |\n\n' +
       '- [x] Split chronologically for time series\n- [ ] Tune the threshold to the cost of each mistake\n\n> Raising the threshold trades recall for precision.\n\n```python\nprecision = tp / (tp + fp)\nrecall = tp / (tp + fn)\n```',
     citations: [],
-    artefacts: [{ title: 'precision_vs_recall.html', type: 'html', path: 'precision_vs_recall.html', content: 'Precision vs recall\nTwo complementary metrics.', artefact_key: 'sample-artefact' }],
+    // Live pages come back as text only (2026-11-27); the second one carries its HTML to cover that path too.
+    artefacts: [
+      { title: 'threshold_guide.html', type: 'html', path: 'threshold_guide.html', content: GUIDE_TEXT, artefact_key: 'sample-guide' },
+      { title: 'precision_vs_recall.html', type: 'html', path: 'precision_vs_recall.html', content: 'Precision vs recall\nTwo complementary metrics.', artefact_key: 'sample-artefact' },
+    ],
     __resources: [{ uri: 'ui://artefact/sample-artefact', mimeType: 'text/html', text: html }],
   };
 }

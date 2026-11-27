@@ -156,24 +156,92 @@ export function ArtefactViewer({ a, project }: { a: Artefact; project?: string }
         // No allow-same-origin: the page runs its own scripts but can't reach this app or its data.
         <iframe className="arte-frame" title={a.title} sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" srcDoc={html} />
       ) : (
-        <div className="arte-text">
-          <p className="arte-text__note">
-            Studio sent this page's text only, so it's shown as a reading view. The full page (charts, tiles, layout) appears here once the gateway returns its HTML.
-          </p>
-          {(text ?? '').split('\n').map((l, i) => {
-            const t = l.trim();
-            if (!t) return null;
-            const head = t.length < 60 && !/[.!?:]$/.test(t);
-            return head ? (
-              <h3 key={i} className="arte-text__h">
-                {t}
-              </h3>
-            ) : (
-              <p key={i}>{t}</p>
-            );
-          })}
-        </div>
+        <PageText text={text ?? ''} />
       )}
+    </div>
+  );
+}
+
+type Block = { k: 'title' | 'lede' | 'h' | 'sub' | 'p' | 'foot'; t: string } | { k: 'tiles'; items: string[] };
+
+const isSentence = (l: string) => l.length >= 70 || /[.!?]["')]?$/.test(l);
+const isFormula = (l: string) => /[=×÷]|\(.*[+/].*\)|\b[A-Z]{2,}\s*\/\s*/.test(l);
+
+/** Turns the text of a page Studio made into a laid-out document: title, lede, sections, tiles for short facts. */
+export function pageBlocks(text: string): Block[] {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const out: Block[] = [];
+  let i = 0;
+  if (lines[0]) out.push({ k: 'title', t: lines[i++]! });
+  if (lines[i] && isSentence(lines[i]!) && lines[i]!.length < 260) out.push({ k: 'lede', t: lines[i++]! });
+  while (i < lines.length) {
+    const l = lines[i]!;
+    if (/^generated (in|by)\b/i.test(l)) {
+      out.push({ k: 'foot', t: l });
+      i++;
+      continue;
+    }
+    if (isSentence(l)) {
+      out.push({ k: 'p', t: l });
+      i++;
+      continue;
+    }
+    const run: string[] = [];
+    while (i < lines.length && !isSentence(lines[i]!) && !/^generated (in|by)\b/i.test(lines[i]!)) run.push(lines[i++]!);
+    const beforeParagraph = i < lines.length && isSentence(lines[i]!) && !/^generated (in|by)\b/i.test(lines[i]!);
+    const tail = beforeParagraph && run.length > 2 ? run.pop() : undefined;
+    if (run.length <= 2) {
+      out.push({ k: 'h', t: run[0]! });
+      if (run[1]) out.push({ k: 'sub', t: run[1] });
+    } else {
+      // A plain line right before formulas names them ("Key formula"); otherwise the first line heads the group.
+      let tiles: string[] = [];
+      run.forEach((t, j) => {
+        const next = run[j + 1];
+        const headsFormulas = !isFormula(t) && next !== undefined && isFormula(next) && (j === 0 || !isFormula(run[j - 1]!) || tiles.length > 0);
+        if ((j === 0 && !isFormula(t) && run.length > 3) || (headsFormulas && tiles.length > 0)) {
+          if (tiles.length) out.push({ k: 'tiles', items: tiles });
+          tiles = [];
+          out.push({ k: 'h', t });
+        } else tiles.push(t);
+      });
+      if (tiles.length) out.push({ k: 'tiles', items: tiles });
+    }
+    if (tail) out.push({ k: 'h', t: tail });
+  }
+  return out;
+}
+
+function PageText({ text }: { text: string }) {
+  const blocks = pageBlocks(text);
+  return (
+    <div className="arte-text">
+      <p className="arte-text__note">Text view. Studio sends this page's words but not its design yet.</p>
+      <article className="arte-doc">
+        {blocks.map((b, i) =>
+          b.k === 'tiles' ? (
+            <div key={i} className="arte-doc__tiles">
+              {b.items.map((t, j) => (
+                <div key={j} className={`arte-doc__tile${isFormula(t) ? ' is-formula' : ''}`}>
+                  {t}
+                </div>
+              ))}
+            </div>
+          ) : b.k === 'title' ? (
+            <h1 key={i} className="arte-doc__title">
+              {b.t}
+            </h1>
+          ) : b.k === 'h' ? (
+            <h2 key={i} className="arte-doc__h">
+              {b.t}
+            </h2>
+          ) : (
+            <p key={i} className={`arte-doc__${b.k}`}>
+              {b.t}
+            </p>
+          ),
+        )}
+      </article>
     </div>
   );
 }

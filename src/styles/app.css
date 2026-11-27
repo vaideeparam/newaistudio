@@ -609,3 +609,28 @@ textarea.field__input { resize: vertical; }
   .conv__scope { flex: 0 1 auto; min-width: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; }
   .conv__scope > * { overflow: hidden; text-overflow: ellipsis; }
 }
+
+/* Page viewer: one scroll container only (the page itself), so scrolling never stalls between nested scrollers or over the frame. */
+.as-panel { min-height: 0; overflow: hidden; }
+.panel-body:has(> .arte-view) { padding: 0; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+.arte-view { flex: 1; min-height: 0; height: auto; padding: 8px 12px 12px; box-sizing: border-box; }
+.arte-frame { flex: 1; min-height: 0; height: 100%; }
+.arte-text { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; border: 1px solid var(--color-border); border-radius: 12px; background: #fffefb; }
+.arte-text__note { margin: 0; border-radius: 0; border-bottom: 1px solid var(--color-border); font-size: 11.5px; padding: 6px 12px; }
+@media (max-width: 768px) {
+  .as-root.as-app--panel-wide .as-panel { height: 100dvh; }
+  .as-root .as-panel { height: 85dvh; }
+}
+
+/* Text of a Studio page, laid out as a document. */
+.arte-doc { max-width: 760px; margin: 0 auto; padding: 28px 28px 32px; color: #1f1c16; line-height: 1.6; }
+.arte-doc__title { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; font-size: 28px; line-height: 1.15; margin: 0 0 8px; }
+.arte-doc__lede { font-size: 16px; color: var(--color-text-secondary); margin: 0 0 20px; }
+.arte-doc__h { font-family: var(--font-display); font-weight: 600; font-size: 18px; margin: 26px 0 6px; padding-top: 18px; border-top: 1px solid var(--color-border); }
+.arte-doc__sub { margin: 0 0 10px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
+.arte-doc__p { margin: 0 0 12px; font-size: 15px; }
+.arte-doc__tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 10px 0 14px; }
+.arte-doc__tile { padding: 12px 14px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); font-size: 14px; font-weight: 500; line-height: 1.35; }
+.arte-doc__tile.is-formula { font-family: var(--font-mono); font-size: 13px; font-weight: 400; background: #f6f3ea; }
+.arte-doc__foot { margin: 28px 0 0; font-size: 12px; color: var(--color-text-muted); border-top: 1px solid var(--color-border); padding-top: 12px; }
+@media (max-width: 768px) { .arte-doc { padding: 20px 16px 24px; } .arte-doc__title { font-size: 23px; } .arte-doc__tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

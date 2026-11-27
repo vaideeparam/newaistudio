@@ -10,7 +10,7 @@
     "build": "tsc -b && vite build",
     "start": "NODE_ENV=production tsx server/index.ts",
     "typecheck": "tsc -b",
-    "test": "vitest run",
+    "test": "vitest run src server",
     "build:demo": "node scripts/build-demo.mjs",
     "e2e": "npm run build:demo && node --test --test-concurrency=1 e2e/journeys.test.mjs"
   },
