@@ -1,5 +1,6 @@
 import { Fragment, useId, useMemo, useState } from 'react';
-import { parseAnswer, type Inline } from './citations';
+import { type Inline } from './citations';
+import { Markdown } from '../../components/Markdown';
 import type { Answer, Citation } from './types';
 
 interface Props {
@@ -9,7 +10,6 @@ interface Props {
 export function AnswerView({ answer }: Props) {
   const baseId = useId();
   const [active, setActive] = useState<number | null>(null);
-  const blocks = useMemo(() => parseAnswer(answer.text), [answer.text]);
   const byN = useMemo(() => new Map(answer.citations.map((c) => [c.n, c])), [answer.citations]);
   const sourceId = (n: number) => `${baseId}-src-${n}`;
 
@@ -51,11 +51,7 @@ export function AnswerView({ answer }: Props) {
   return (
     <div className="ask-answer">
       <div className="ask-answer-text">
-        {blocks.map((b, i) => {
-          if (b.kind === 'p') return <p key={i}>{renderInline(b.children)}</p>;
-          const items = b.items.map((it, j) => <li key={j}>{renderInline(it)}</li>);
-          return b.kind === 'ul' ? <ul key={i}>{items}</ul> : <ol key={i}>{items}</ol>;
-        })}
+        <Markdown text={answer.text} cite={(n, key) => <Fragment key={key}>{renderInline([{ kind: 'cite', n }])}</Fragment>} />
       </div>
 
       {answer.citations.length > 0 && (

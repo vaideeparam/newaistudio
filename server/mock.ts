@@ -494,6 +494,7 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
             ],
         cost_usd: 0.0142,
         took_s: (Date.now() - run.startedAt) / 1000,
+        ...(run.agent ? richAgentAnswer() : {}),
       });
     }
     case 'list_schedules': {
@@ -587,4 +588,20 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
     default:
       return fail(`Mock mode has no data for tool "${name}"`);
   }
+}
+
+/** Sample of a rich agent answer, shaped like the live ML Explainer run (2026-11-27): markdown + an html artefact. */
+function richAgentAnswer() {
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:system-ui;margin:24px;color:#191712;background:#f8f6f0}h1{font-size:22px}.k{display:flex;gap:12px}.k div{flex:1;background:#fff;border:1px solid #e3ded2;border-radius:10px;padding:12px}.k b{display:block;font-size:22px}</style></head><body><h1>Precision vs recall</h1><div class="k"><div>Precision<b>0.82</b></div><div>Recall<b>0.67</b></div><div>F1<b>0.74</b></div></div><p>Sample page. In the live app this is the page Studio made.</p></body></html>`;
+  return {
+    answer:
+      'The page **precision_vs_recall.html** covers both metrics with a worked example.\n\n---\n\n### What is in the page\n\n' +
+      '| Section | What you will find |\n|---|---|\n| **KPI tiles** | Precision, recall and F1 for the example |\n| **Confusion matrix** | Which cell hurts which metric |\n| **Formulas** | `TP / (TP+FP)` and `TP / (TP+FN)` |\n\n' +
+      '```kpi\n[{"label":"Precision","value":"0.82","delta":"+0.05 vs baseline","good":true},{"label":"Recall","value":"0.67","delta":"-0.08","good":false},{"label":"F1","value":"0.74"}]\n```\n\n' +
+      '### Threshold sweep\n\n| Threshold | Precision | Recall |\n|---|---|---|\n| 0.3 | 0.61 | 0.91 |\n| 0.5 | 0.74 | 0.80 |\n| 0.7 | 0.82 | 0.67 |\n| 0.9 | 0.93 | 0.38 |\n\n' +
+      '- [x] Split chronologically for time series\n- [ ] Tune the threshold to the cost of each mistake\n\n> Raising the threshold trades recall for precision.\n\n```python\nprecision = tp / (tp + fp)\nrecall = tp / (tp + fn)\n```',
+    citations: [],
+    artefacts: [{ title: 'precision_vs_recall.html', type: 'html', path: 'precision_vs_recall.html', content: 'Precision vs recall\nTwo complementary metrics.', artefact_key: 'sample-artefact' }],
+    __resources: [{ uri: 'ui://artefact/sample-artefact', mimeType: 'text/html', text: html }],
+  };
 }

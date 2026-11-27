@@ -103,7 +103,7 @@ export function AgentPage() {
 
   const run = (text: string) => {
     const filled = mainInput ? { ...inputs, [mainInput.name]: text } : undefined;
-    nav(`/c/${start({ kind: 'agent', name: d?.name ?? key, id: d?.id ?? id, project: d?.project, version: version || undefined }, text, workspace, [], filled)}`);
+    nav(`/c/${start({ kind: 'agent', name: d?.name ?? key, id: d?.id ?? id, project: d?.project ?? summary?.project, version: version || undefined }, text, workspace, [], filled)}`);
   };
 
   const [params, setParams] = useSearchParams();

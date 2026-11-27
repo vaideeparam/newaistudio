@@ -40,6 +40,8 @@ export const LIVE_TOOLS = [
   'resume_run',
   'schedule_agent',
   'control_schedule',
+  'show_artefact',
+  'save_artefact',
 ] as const;
 
 /** Screens whose backend tool doesn't exist yet: they keep sample data, labelled as such. */
@@ -109,8 +111,27 @@ export async function liveCall<T>(tool: string, args: Record<string, unknown>): 
   if (!mcp) throw new ConnectorError('unavailable', 'This view did not grant the page access to your connectors. Open the page in claude.ai and allow ai/Studio from its Permissions menu.');
   try {
     const r = await mcp.callTool(CONNECTOR, tool, args);
-    return r.payload as T;
+    return withResources(r.payload, r.content) as T;
   } catch (e) {
     throw new ConnectorError((e as McpError).code ?? 'upstream_error', explain(e));
   }
+}
+
+/** An MCP-UI / embedded resource a tool returned beside its JSON (e.g. the HTML page behind a card). */
+export interface UiResource {
+  uri?: string;
+  mimeType?: string;
+  text?: string;
+  blob?: string;
+}
+
+/** Keep embedded resources (MCP-UI pages, files) that would otherwise be dropped with the content blocks. */
+export function withResources(payload: unknown, content: unknown): unknown {
+  if (!Array.isArray(content)) return payload;
+  const res: UiResource[] = content
+    .filter((b) => b && typeof b === 'object' && ((b as { type?: string }).type === 'resource' || (b as { type?: string }).type === 'resource_link'))
+    .map((b) => ((b as { resource?: UiResource }).resource ?? (b as UiResource)));
+  if (!res.length) return payload;
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) return { ...(payload as object), __resources: res };
+  return { value: payload, __resources: res };
 }

@@ -20,6 +20,15 @@ export function normalizeToolResult(result: {
   isError?: boolean;
 }): ToolOutcome {
   const isError = result.isError === true;
+  // Embedded resources (MCP-UI pages, files) ride beside the JSON as __resources.
+  const blocks = Array.isArray(result.content) ? (result.content as ContentBlock[]) : [];
+  const resources = blocks.filter((b) => b.type === 'resource' || b.type === 'resource_link').map((b) => (b.resource as object | undefined) ?? b);
+  if (resources.length) {
+    const rest = { ...result, content: blocks.filter((b) => b.type !== 'resource' && b.type !== 'resource_link') };
+    const inner = normalizeToolResult(rest);
+    const data = inner.data && typeof inner.data === 'object' && !Array.isArray(inner.data) ? { ...(inner.data as object), __resources: resources } : { value: inner.data, __resources: resources };
+    return { isError, data };
+  }
   if (result.structuredContent !== undefined && result.structuredContent !== null) {
     return { isError, data: result.structuredContent };
   }

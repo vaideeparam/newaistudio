@@ -4,6 +4,8 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 export interface PanelContent {
   title: string;
   body: ReactNode;
+  /** Artefacts get a wider pane (and the whole screen on a phone). */
+  wide?: boolean;
 }
 
 const Ctx = createContext<{ panel: PanelContent | null; open: (p: PanelContent) => void; close: () => void } | null>(null);

@@ -28,6 +28,21 @@ export interface Turn {
   costUsd?: number;
   runId?: string;
   error?: string;
+  artefacts?: Artefact[];
+}
+
+/** A page, report or table an answer made (observed live 2026-11-27 on get_run). */
+export interface Artefact {
+  title: string;
+  /** "html", … */
+  type?: string;
+  path?: string;
+  /** The page's text (not its HTML). */
+  content?: string;
+  /** Pass to show_artefact / save_artefact. */
+  artefact_key?: string;
+  /** Present when the gateway also sent the page itself (MCP-UI resource). */
+  html?: string;
 }
 
 export interface Conversation {
@@ -60,6 +75,21 @@ interface RunResponse {
   missing?: string[];
   error?: string;
   output?: unknown;
+  artefacts?: Artefact[];
+  cost?: { usd?: number; tokens?: number };
+  __resources?: { uri?: string; mimeType?: string; text?: string }[];
+}
+
+/** Attach any HTML the gateway sent as an MCP-UI resource to the artefact it belongs to. */
+function artefactsOf(r: RunResponse | undefined): Artefact[] {
+  const list = (r?.artefacts ?? []).map((a) => ({ ...a }));
+  const html = (r?.__resources ?? []).filter((x) => /html/.test(x.mimeType ?? '') && x.text);
+  html.forEach((h, i) => {
+    const a = list.find((x) => h.uri?.includes(x.artefact_key ?? '\u0000') || h.uri?.includes(x.path ?? '\u0000')) ?? list[i];
+    if (a) a.html = h.text;
+    else list.push({ title: h.uri ?? 'Page', type: 'html', html: h.text });
+  });
+  return list;
 }
 
 /** What to show when a run ends without a plain answer (form agents, questions, failures). */
@@ -164,7 +194,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             citations: normalizeCitations(r?.citations),
             steps: r?.steps ?? [],
             tookS: r?.took_s,
-            costUsd: r?.cost_usd,
+            costUsd: r?.cost_usd ?? r?.cost?.usd,
+            artefacts: artefactsOf(r),
           },
           { conversationId: r?.conversation_id ?? conv.conversationId },
         );

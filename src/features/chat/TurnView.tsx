@@ -3,6 +3,7 @@ import { usePanel } from '../../app/panel';
 import { Icon } from '../../components/Icon';
 import { Receipt } from '../../components/Receipt';
 import { AnswerView } from '../ask/AnswerView';
+import { ArtefactCards } from './Artefacts';
 import type { Conversation, Turn } from './store';
 
 export function TurnView({ conv, turn }: { conv: Conversation; turn: Turn }) {
@@ -31,18 +32,22 @@ export function TurnView({ conv, turn }: { conv: Conversation; turn: Turn }) {
             {turn.steps.length > 0 && (
               <button type="button" className="steps-toggle" onClick={() => setShowSteps((v) => !v)} aria-expanded={showSteps}>
                 <Icon name="chevron" size={12} className={showSteps ? 'rot90' : ''} />
-                Ran {turn.steps.length} steps
+                {turn.steps.length === 1 ? 'Ran 1 step' : `Ran ${turn.steps.length} steps`}
                 {modelCalls > 0 && (
                   <>
                     {' '}
                     · {modelCalls} model call{modelCalls === 1 ? '' : 's'}
                   </>
                 )}
-                {turn.tookS != null && <> · {turn.tookS.toFixed(1)}s</>}
+                {turn.tookS != null && <> · {turn.tookS < 60 ? `${turn.tookS.toFixed(1)}s` : `${Math.floor(turn.tookS / 60)}m ${Math.round(turn.tookS % 60)}s`}</>}
+                {turn.costUsd != null && <> · ${turn.costUsd.toFixed(3)}</>}
               </button>
             )}
             {showSteps && <StepList turn={turn} />}
-            <AnswerView answer={{ text: turn.answer || 'Studio returned no answer.', citations: turn.citations }} />
+            <AnswerView answer={{ text: turn.answer || (turn.artefacts?.length ? '' : 'Studio returned no answer.'), citations: turn.citations }} />
+            {turn.artefacts && turn.artefacts.length > 0 && (
+              <ArtefactCards artefacts={turn.artefacts} project={conv.target.kind === 'agent' ? conv.target.project : conv.target.name} />
+            )}
             <div className="turn-foot">
               <span className="as-status as-status--governed" title="Every step ran inside this workspace">
                 Governed · {conv.workspace ?? 'workspace'}

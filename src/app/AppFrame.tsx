@@ -52,7 +52,7 @@ export function AppFrame() {
   }, [loc.pathname, loc.search]);
 
   return (
-    <div className={`as-app as-root${panel ? ' as-app--with-panel' : ''}${drawer ? ' is-drawer-open' : ''}`}>
+    <div className={`as-app as-root${panel ? ' as-app--with-panel' : ''}${panel?.wide ? ' as-app--panel-wide' : ''}${drawer ? ' is-drawer-open' : ''}`}>
       <header className="mobile-bar">
         <button type="button" className="as-btn as-btn--ghost as-icon-btn" aria-label="Open menu" aria-expanded={drawer} onClick={() => setDrawer(true)}>
           <Icon name="menu" />
