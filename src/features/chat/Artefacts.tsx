@@ -84,12 +84,22 @@ export function ArtefactViewer({ a, project }: { a: Artefact; project?: string }
     };
   }, [a.artefact_key, html, project]);
 
-  const download = () => {
-    const blob = new Blob([html ?? text ?? ''], { type: html ? 'text/html' : 'text/plain' });
-    const url = URL.createObjectURL(blob);
+  const download = async () => {
+    const filename = html ? a.title.replace(/(\.html?)?$/i, '.html') : a.title.replace(/\.html?$/i, '') + '.txt';
+    const data = new Blob([html ?? text ?? ''], { type: html ? 'text/html' : 'text/plain' });
+    // Inside claude.ai the page can't download directly: the viewer's downloads capability asks the person.
+    const claude = (window as unknown as { claude?: { use(n: string): Promise<{ save(r: { filename: string; data: Blob }): Promise<unknown> } | null> } }).claude;
+    if (claude?.use) {
+      const dl = await claude.use('downloads').catch(() => null);
+      if (dl) {
+        await dl.save({ filename, data }).catch(() => undefined);
+        return;
+      }
+    }
+    const url = URL.createObjectURL(data);
     const link = document.createElement('a');
     link.href = url;
-    link.download = html ? a.title.replace(/(\.html?)?$/i, '.html') : a.title.replace(/\.html?$/i, '') + '.txt';
+    link.download = filename;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
@@ -117,7 +127,7 @@ export function ArtefactViewer({ a, project }: { a: Artefact; project?: string }
           </button>
         )}
         {save === 'done' && <span className="as-status as-status--governed">Saved</span>}
-        <button type="button" className="as-btn as-btn--ghost as-icon-btn" onClick={download} aria-label="Download" title="Download">
+        <button type="button" className="as-btn as-btn--ghost as-icon-btn" onClick={() => void download()} aria-label="Download" title="Download">
           <Icon name="download" size={15} />
         </button>
         <button type="button" className="as-btn as-btn--ghost as-icon-btn" onClick={() => setFull((v) => !v)} aria-label={full ? 'Exit full screen' : 'Full screen'} title={full ? 'Exit full screen' : 'Full screen'}>
