@@ -1,0 +1,109 @@
+/**
+ * Browser-side MCP client. It never talks to the Gateway directly: every call
+ * goes through our server at /api/mcp, which holds the Gateway session and tokens.
+ */
+
+export class AuthRequiredError extends Error {
+  constructor(message = 'Sign in to ai/Studio to continue') {
+    super(message);
+    this.name = 'AuthRequiredError';
+  }
+}
+
+export class McpToolError extends Error {
+  constructor(
+    readonly tool: string,
+    message: string,
+    readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = 'McpToolError';
+  }
+}
+
+export interface ToolInfo {
+  name: string;
+  description?: string;
+  inputSchema?: unknown;
+}
+
+interface Envelope<T> {
+  data?: T;
+  error?: { message: string; tool?: string; details?: unknown };
+}
+
+/**
+ * Static demo build (VITE_STATIC_MOCK=1): no server, the mock runs in the page.
+ * Used to publish a clickable preview; never set for a real deployment.
+ */
+export const STATIC_MOCK = import.meta.env.VITE_STATIC_MOCK === '1';
+import { LIVE_TOOLS, SAMPLE_ONLY, liveCall } from './connector';
+
+/** Set once the session decides: the preview is reading the viewer's live ai/Studio. */
+let live = false;
+export function setLive(v: boolean) {
+  live = v;
+}
+
+async function staticCall<T>(name: string, args: Record<string, unknown>): Promise<T> {
+  if (live && !SAMPLE_ONLY.has(name)) {
+    if (!(LIVE_TOOLS as readonly string[]).includes(name)) {
+      // Not available live (e.g. list_connectors): fail so the screen uses its live fallback.
+      throw new McpToolError(name, `${name} is not available on this connector`);
+    }
+    try {
+      return await liveCall<T>(name, args);
+    } catch (e) {
+      throw new McpToolError(name, (e as Error).message, e);
+    }
+  }
+  const { mockCallTool } = await import('../../server/mock');
+  const out = await mockCallTool(name, args);
+  if (out.isError) throw new McpToolError(name, typeof out.data === 'string' ? out.data : `Tool ${name} failed`, out.data);
+  return out.data as T;
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await fetch(path, {
+    credentials: 'same-origin',
+    ...init,
+    headers: { 'Content-Type': 'application/json', 'X-Studio-Request': '1', ...init.headers },
+  });
+  let body: Envelope<T> = {};
+  try {
+    body = (await res.json()) as Envelope<T>;
+  } catch {
+    /* non-JSON error page */
+  }
+  if (res.status === 401) throw new AuthRequiredError(body.error?.message);
+  if (!res.ok || body.error) {
+    const msg = body.error?.message ?? `Request failed (${res.status})`;
+    throw new McpToolError(body.error?.tool ?? path, msg, body.error?.details);
+  }
+  return body.data as T;
+}
+
+/**
+ * Call a Gateway MCP tool.
+ * Resolves to the tool's structuredContent, else its single text block parsed
+ * as JSON, else the raw text. Rejects with McpToolError when the tool reports
+ * an error and AuthRequiredError when the user must sign in.
+ * There is no client-side timeout: some tools (get_run) wait ~30s by design.
+ */
+export function callTool<T = unknown>(
+  name: string,
+  args: Record<string, unknown> = {},
+  opts: { signal?: AbortSignal } = {},
+): Promise<T> {
+  if (STATIC_MOCK) return staticCall<T>(name, args);
+  return request<T>(`/api/mcp/tools/${encodeURIComponent(name)}`, {
+    method: 'POST',
+    body: JSON.stringify(args),
+    signal: opts.signal,
+  });
+}
+
+export async function listTools(): Promise<ToolInfo[]> {
+  if (STATIC_MOCK) return (await import('../../server/mock')).mockListTools();
+  return request<ToolInfo[]>('/api/mcp/tools');
+}

@@ -1,0 +1,153 @@
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Icon, type IconName } from '../components/Icon';
+import { Lockup } from '../components/Lockup';
+import { useChats } from '../features/chat/store';
+import { usePanel } from './panel';
+import { useSession } from './session';
+import { useStudio } from './studio';
+
+const nav: { to: string; label: string; icon: IconName }[] = [
+  { to: '/chats', label: 'Chats', icon: 'chat' },
+  { to: '/agents', label: 'Agents', icon: 'agent' },
+  { to: '/routines', label: 'Routines', icon: 'routine' },
+  { to: '/knowledge', label: 'Knowledge', icon: 'graph' },
+  { to: '/connectors', label: 'Connectors', icon: 'plug' },
+  { to: '/governance', label: 'Governance', icon: 'shield' },
+];
+
+/**
+ * One window: sidebar | main | optional side panel.
+ * Design time (agents, routines) and run time (chats) share the same frame,
+ * and the workspace is shown, not switched, at the foot of the sidebar.
+ */
+export function AppFrame() {
+  const [noteHidden, setNoteHidden] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [liveErr, setLiveErr] = useState<string | null>(null);
+  /** A click lets claude.ai show its permission prompt; on success reload so every screen reads live. */
+  const goLive = async () => {
+    setConnecting(true);
+    setLiveErr(null);
+    try {
+      const { liveCall } = await import('../lib/connector');
+      await liveCall('whoami', {});
+      window.location.reload();
+    } catch (e) {
+      setLiveErr(e instanceof Error ? e.message : String(e));
+      setConnecting(false);
+    }
+  };
+  const { session, signOut } = useSession();
+  const { workspace, workspaces } = useStudio();
+  const { conversations } = useChats();
+  const { panel, close } = usePanel();
+  const go = useNavigate();
+  const role = workspaces.find((w) => w.name === workspace)?.role;
+  // Phones: the sidebar is a drawer, closed again after every navigation.
+  const [drawer, setDrawer] = useState(false);
+  const loc = useLocation();
+  useEffect(() => {
+    setDrawer(false);
+  }, [loc.pathname, loc.search]);
+
+  return (
+    <div className={`as-app as-root${panel ? ' as-app--with-panel' : ''}${panel?.wide ? ' as-app--panel-wide' : ''}${drawer ? ' is-drawer-open' : ''}`}>
+      <header className="mobile-bar">
+        <button type="button" className="as-btn as-btn--ghost as-icon-btn" aria-label="Open menu" aria-expanded={drawer} onClick={() => setDrawer(true)}>
+          <Icon name="menu" />
+        </button>
+        <Lockup size={15} />
+        <button type="button" className="as-btn as-btn--ghost as-icon-btn" aria-label="New chat" onClick={() => go('/')}>
+          <Icon name="plus" />
+        </button>
+      </header>
+      {drawer && <div className="drawer-scrim" onClick={() => setDrawer(false)} aria-hidden="true" />}
+      <aside className="as-sidebar" aria-label="Navigation">
+        <div className="sidebar-head">
+          <Lockup size={17} />
+        </div>
+        <button type="button" className="newchat-btn" onClick={() => go('/')}>
+          <span className="newchat-btn__icon">
+            <Icon name="plus" size={14} />
+          </span>
+          New chat
+        </button>
+        <nav aria-label="Main">
+          {nav.map((n) => (
+            <NavLink key={n.to} to={n.to} className={({ isActive }) => `as-sidebar__item${isActive ? ' is-active' : ''}`}>
+              <Icon name={n.icon} /> {n.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="as-sidebar__section as-label">Recents</div>
+        {conversations.length === 0 && <div className="sidebar-empty">Your chats and agent runs show up here.</div>}
+        {conversations.slice(0, 20).map((c) => (
+          <NavLink key={c.id} to={`/c/${c.id}`} className={({ isActive }) => `as-sidebar__item recent${isActive ? ' is-active' : ''}`} title={c.title}>
+            <span className="recent__title">{c.title}</span>
+          </NavLink>
+        ))}
+
+        <div className="as-sidebar__footer">
+          <div className="me">
+            <div className="me__avatar">{(session?.user?.name ?? '?').slice(0, 1)}</div>
+            <div className="me__text">
+              <div className="me__name">{session?.user?.name ?? 'Signed in'}</div>
+              <div className="me__ws">
+                <Icon name="lock" size={11} /> {workspace ?? 'Workspace'}
+                {role && ` · ${role}`}
+              </div>
+            </div>
+            {session?.mode === 'mock' && (
+              <span className="mock-badge" title={session.note ?? 'Sample data'}>
+                Sample
+              </span>
+            )}
+            {session?.mode === 'connector' && (
+              <span className="mock-badge mock-badge--live" title="Your live ai/Studio, through your claude.ai connector">
+                Live
+              </span>
+            )}
+            {session?.mode === 'oauth' && (
+              <button type="button" className="as-btn as-btn--ghost as-icon-btn" title="Sign out" onClick={() => void signOut()}>
+                <Icon name="close" size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+      </aside>
+
+      <main className="as-main">
+        {session?.note && !noteHidden && (
+          <div className="preview-note" role="status">
+            <span>
+              <b>Not live: showing sample data.</b> {liveErr ?? session.note}
+            </span>
+            {session.retryLive && (
+              <button type="button" className="preview-note__go" onClick={() => void goLive()} disabled={connecting}>
+                {connecting ? 'Connecting…' : 'Connect live data'}
+              </button>
+            )}
+            <button type="button" onClick={() => setNoteHidden(true)}>
+              Dismiss
+            </button>
+          </div>
+        )}
+        <Outlet />
+      </main>
+
+      {panel && (
+        <aside className="as-panel">
+          <div className="as-panel__head">
+            <span className="panel-title">{panel.title}</span>
+            <button type="button" className="as-btn as-btn--ghost as-icon-btn" aria-label="Close panel" onClick={close}>
+              <Icon name="close" />
+            </button>
+          </div>
+          <div className="panel-body">{panel.body}</div>
+        </aside>
+      )}
+    </div>
+  );
+}
