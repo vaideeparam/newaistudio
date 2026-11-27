@@ -634,3 +634,15 @@ textarea.field__input { resize: vertical; }
 .arte-doc__tile.is-formula { font-family: var(--font-mono); font-size: 13px; font-weight: 400; background: #f6f3ea; }
 .arte-doc__foot { margin: 28px 0 0; font-size: 12px; color: var(--color-text-muted); border-top: 1px solid var(--color-border); padding-top: 12px; }
 @media (max-width: 768px) { .arte-doc { padding: 20px 16px 24px; } .arte-doc__title { font-size: 23px; } .arte-doc__tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* A Studio page is paper in either theme: pin its colours so dark mode can't turn tiles dark under dark text. */
+.arte-text { --color-surface: #fbfaf6; --color-surface-hover: rgba(0, 0, 0, .04); --color-border: #e6e1d5; --color-text: #1f1c16; --color-text-secondary: #5c574c; --color-text-muted: #8a8475; color: #1f1c16; background: #fffefb; }
+.arte-doc__tile { color: #1f1c16; }
+.arte-doc__tile.is-formula { background: #f3efe4; }
+.mini-row--btn { font-size: var(--font-size-sm); }
+.conv__top { gap: 8px; }
+.conv__back { margin-left: -6px; flex: none; }
+.conv__scope--link { text-decoration: none; color: var(--color-text-secondary); border-radius: 6px; padding: 2px 6px; }
+.conv__scope--link:hover { background: var(--color-surface-hover); color: var(--color-text); }
+.crumb { min-height: 32px; }
+@media (max-width: 768px) { .conv__ws { display: none; } .crumb { min-height: 40px; } }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useBack } from '../../app/back';
 import { useSession } from '../../app/session';
 import { useStudio } from '../../app/studio';
 import { Composer } from '../../components/Composer';
@@ -64,6 +65,7 @@ export function ConversationPage() {
   const end = useRef<HTMLDivElement>(null);
   const turns = conv?.turns.length ?? 0;
   const last = conv?.turns[turns - 1]?.state;
+  const back = useBack(conv?.target.kind === 'agent' ? `/agents/${encodeURIComponent(conv.target.id)}` : '/chats');
 
   useEffect(() => {
     end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -75,12 +77,23 @@ export function ConversationPage() {
   return (
     <div className="conv">
       <header className="as-topbar conv__top">
+        <button type="button" className="as-btn as-btn--ghost as-icon-btn conv__back" aria-label="Back" title="Back" onClick={back}>
+          <Icon name="chevron" size={16} className="flip" />
+        </button>
         <div className="conv__title">{conv.title}</div>
-        <div className="conv__scope">
-          <Icon name={conv.target.kind === 'agent' ? 'agent' : 'doc'} size={14} />
-          {conv.target.name}
-          {conv.workspace && <span className="conv__ws">· {conv.workspace}</span>}
-        </div>
+        {conv.target.kind === 'agent' ? (
+          <Link to={`/agents/${encodeURIComponent(conv.target.id)}`} className="conv__scope conv__scope--link" title={`Open ${conv.target.name}`}>
+            <Icon name="agent" size={14} />
+            <span>{conv.target.name}</span>
+            {conv.workspace && <span className="conv__ws">· {conv.workspace}</span>}
+          </Link>
+        ) : (
+          <div className="conv__scope">
+            <Icon name="doc" size={14} />
+            <span>{conv.target.name}</span>
+            {conv.workspace && <span className="conv__ws">· {conv.workspace}</span>}
+          </div>
+        )}
       </header>
       <div className="as-scroll">
         <div className="as-conversation">

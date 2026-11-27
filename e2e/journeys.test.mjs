@@ -217,6 +217,13 @@ for (const size of SIZES) {
     await p.waitForTimeout(300);
     assert.ok((await doc.evaluate((el) => el.scrollTop)) > 0 || (await doc.evaluate((el) => el.scrollHeight <= el.clientHeight)), 'page did not scroll');
     await shot(p, 'j14-page-text');
+    // Dark mode (claude.ai sets data-theme on the page): the page stays paper, tiles stay readable.
+    await p.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+    const [bg, fg] = await p.locator('.arte-doc__tile').first().evaluate((el) => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color]);
+    const lum = (c) => c.match(/\d+/g).slice(0, 3).reduce((n, v) => n + Number(v), 0) / 3;
+    assert.ok(lum(bg) - lum(fg) > 120, `tile unreadable in dark mode (${bg} on ${fg})`);
+    await shot(p, 'j14-page-dark');
+    await p.evaluate(() => document.documentElement.removeAttribute('data-theme'));
     // A page that comes with its HTML opens in a frame that fills the pane.
     await p.getByRole('button', { name: 'Close panel' }).click();
     await p.locator('.arte-card', { hasText: 'Precision vs recall' }).click();
@@ -226,6 +233,41 @@ for (const size of SIZES) {
     assert.ok(fb.height > p.viewportSize().height * 0.5, 'page frame is too short');
     await shot(p, 'j14-page-html');
     await done(p);
+  });
+
+  test(`[${size}] J15 every nested screen has a way back`, async () => {
+    // Agent → earlier run → Back returns to the agent.
+    const p = await open(size, '/agents');
+    await p.locator('.agent-card', { hasText: 'AI-Studio-PM' }).click();
+    await p.locator('.agent-hero__title', { hasText: 'AI-Studio-PM' }).waitFor();
+    await p.locator('.mini-row--btn').filter({ hasText: /^sweep/ }).filter({ hasNotText: 'wins' }).first().click();
+    await p.locator('.md').first().waitFor({ timeout: 10000 });
+    await p.getByRole('button', { name: 'Back' }).click();
+    await p.locator('.agent-hero__title', { hasText: 'AI-Studio-PM' }).waitFor();
+    // Agent → crumb back to the list.
+    await p.locator('.crumb', { hasText: 'Agents' }).click();
+    await p.getByRole('heading', { level: 1, name: 'Agents' }).waitFor();
+    // Design a new mind → crumb back.
+    await p.getByRole('link', { name: /Design a new agent/ }).click();
+    await p.locator('.crumb', { hasText: 'Agents' }).click();
+    await p.getByRole('heading', { level: 1, name: 'Agents' }).waitFor();
+    // Chats → a chat → Back to Chats.
+    const s = await stored(p);
+    await p.ctx.close();
+    const q = await open(size, '/chats', { storage: s });
+    await q.locator('main').getByText('sweep').first().click();
+    await q.getByRole('button', { name: 'Back' }).waitFor();
+    await shot(q, 'j15-chat-back');
+    await q.getByRole('button', { name: 'Back' }).click();
+    await q.getByRole('heading', { level: 1, name: 'Chats' }).waitFor();
+    await q.ctx.close();
+    // Opened straight into a chat (no history): Back goes to the agent it belongs to.
+    const conv = JSON.parse(s)[0];
+    const r = await open(size, `/c/${conv.id}`, { storage: s });
+    await r.getByRole('button', { name: 'Back' }).click();
+    await r.locator('.agent-hero__title', { hasText: 'AI-Studio-PM' }).waitFor();
+    // The agent name in the chat header opens the agent too.
+    await done(r);
   });
 
   test(`[${size}] J10 ask a project, with numbered sources`, async () => {
