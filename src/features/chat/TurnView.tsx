@@ -10,7 +10,10 @@ export function TurnView({ conv, turn }: { conv: Conversation; turn: Turn }) {
   const [showSteps, setShowSteps] = useState(false);
   const { open } = usePanel();
   const modelCalls = turn.steps.filter((s) => s.kind === 'model').length;
-  const { hydrate } = useChats();
+  const { hydrate, send } = useChats();
+  // Saved before 27 Nov: an expired run was stored as an error.
+  const legacyExpired = turn.state === 'error' && /can't reopen this run/i.test(turn.error ?? '');
+  const expired = turn.expired || legacyExpired;
   // Older answers were saved without their pages: fetch them once if Studio still has the run.
   useEffect(() => {
     if (turn.state === 'done' && turn.runId && turn.artefacts === undefined) hydrate(conv.id, turn.id, turn.runId);
@@ -30,9 +33,20 @@ export function TurnView({ conv, turn }: { conv: Conversation; turn: Turn }) {
           </div>
         )}
 
-        {turn.state === 'error' && <div className="turn-error">Couldn't finish this run: {turn.error}</div>}
+        {expired && (
+          <div className="turn-note">
+            <Icon name="history" size={14} />
+            <div>
+              <p>{turn.note ?? 'Studio no longer keeps the full answer for this older run, only its summary. Run it again to get a fresh answer.'}</p>
+              <button type="button" className="as-btn as-btn--secondary" onClick={() => send(conv.id, turn.question)}>
+                Run it again
+              </button>
+            </div>
+          </div>
+        )}
+        {turn.state === 'error' && !legacyExpired && <div className="turn-error">Couldn't finish this run: {turn.error}</div>}
 
-        {turn.state === 'done' && (
+        {turn.state === 'done' && !expired && (
           <>
             {turn.steps.length > 0 && (
               <button type="button" className="steps-toggle" onClick={() => setShowSteps((v) => !v)} aria-expanded={showSteps}>

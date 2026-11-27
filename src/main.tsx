@@ -12,7 +12,7 @@ import './styles/app.css';
 import './features/ask/ask.css';
 
 // The static demo runs inside a frame that owns the URL, so it keeps its route in memory.
-const router = import.meta.env.VITE_STATIC_MOCK === '1' ? createMemoryRouter(routes) : createBrowserRouter(routes);
+const router = import.meta.env.VITE_STATIC_MOCK === '1' ? createMemoryRouter(routes, { initialEntries: [location.hash.startsWith('#/') ? location.hash.slice(1) : '/'] }) : createBrowserRouter(routes);
 
 /** Studio data loads only once someone is signed in. */
 function SignedInProviders({ children }: { children: ReactNode }) {

@@ -11,7 +11,8 @@
     "start": "NODE_ENV=production tsx server/index.ts",
     "typecheck": "tsc -b",
     "test": "vitest run",
-    "build:demo": "node scripts/build-demo.mjs"
+    "build:demo": "node scripts/build-demo.mjs",
+    "e2e": "npm run build:demo && node --test --test-concurrency=1 e2e/journeys.test.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.11",

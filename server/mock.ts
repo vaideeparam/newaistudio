@@ -98,10 +98,33 @@ const agents = [
     project: 'AI-Marketing',
     description:
       'Writes one cold outbound email for a single prospect, grounded in research. A deterministic validator rejects generic phrasing. Every draft is flagged for human review.',
-    steps: [
-      { id: 'compose', type: 'llm_prompt', name: 'Draft the email' },
-      { id: 'validate', type: 'custom_python', name: 'Validate the draft' },
+    // Live shape, 2026-11-27.
+    inputs: [
+      { name: 'prospect', type: 'json', required: true, description: 'The prospect record: name, title, company, domain, seniority, location, email.' },
+      { name: 'research', type: 'json', required: false, description: 'Research findings for this prospect. Thin or absent research is acceptable; the email is written shorter rather than invented.' },
+      { name: 'product_profile', type: 'json', required: true, description: 'What is being sold: description, target_audience, value_props, use_cases. Company-context or offering-level.' },
+      { name: 'seller_position', type: 'text', required: false, description: 'Who is writing and from where: company age, base, certifications held vs in progress, US presence. Never guessed — absent means the email simply does not mention it.' },
+      { name: 'proof_points', type: 'text', required: false, description: 'JSON list of [{customer, what}] this offering may cite. Absent means describe the capability and name nobody.' },
+      { name: 'campaign', type: 'text', required: false, description: 'The campaign this prospect was selected under: {title, trigger, messaging_angle}.' },
+      { name: 'evidence', type: 'text', required: false, description: 'The dated, sourced fact that put this company on the list: {fact, source_url, why_now, suggested_opening, caveat}.' },
+      { name: 'do_not_quote', type: 'text', required: false, description: 'Claims the audit reviewed and refused to stand behind. JSON list of strings.' },
+      { name: 'previous_emails', type: 'text', required: false, description: 'JSON list of emails already sent to this prospect, oldest first: [{touch, sent, subject, body}]. Empty list means first contact.' },
     ],
+    steps: [
+      { id: 'pack_context', type: 'custom_python', name: 'Pack prospect + research context' },
+      { id: 'write_email', type: 'llm_prompt', name: 'Write the email' },
+      { id: 'validate_email', type: 'custom_python', name: 'Validate and gate the draft' },
+    ],
+  },
+  {
+    name: 'ML Explainer Agent',
+    id: 'e3651acd',
+    kind: 'chat',
+    status: 'draft',
+    project: 'AI-Marketing',
+    description: "A conversational AI agent that explains machine learning concepts in plain language, adapting its depth to the user's background.",
+    inputs: [{ name: 'message', type: 'text', required: true, description: "The user's chat message for this turn. Supplied automatically by the chat runtime — callers do not pass it." }],
+    steps: [{ id: 'ml_explainer', type: 'orchestrator', name: 'ML Explainer' }],
   },
 ];
 
@@ -162,7 +185,7 @@ const recentRuns = [
 
 const tools: { name: string; description: string; inputSchema: unknown }[] = [
   'whoami', 'list_workspaces', 'list_projects', 'ask_project', 'get_run', 'find_agents', 'agent_details',
-  'agent_versions', 'run_agent', 'list_schedules', 'schedule_agent', 'control_schedule', 'recent_runs',
+  'agent_versions', 'list_agents', 'run_agent', 'list_schedules', 'schedule_agent', 'control_schedule', 'recent_runs',
   'source_status', 'connect_source', 'design_agent', 'get_design', 'save_agent', 'list_connectors', 'resolve_context', 'knowledge_graph', 'governance_summary', 'audit_log',
 ].map((name) => ({ name, description: `Mock ${name}`, inputSchema: { type: 'object', properties: {} } }));
 
@@ -405,16 +428,26 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
     }
     case 'find_agents': {
       const q = (str('search') ?? '').toLowerCase();
+      // Like the gateway: only agents people can run (published).
       const list = agents
+        .filter((a) => a.status === 'published')
         .filter((a) => !q || a.name.toLowerCase().includes(q) || a.description.toLowerCase().includes(q))
         .map(({ name, description, id }) => ({ name, description, id }));
-      return ok({ agents: list, count: list.length, total: agents.length, complete: true });
+      return ok({ agents: list, count: list.length, total: list.length, complete: true });
+    }
+    case 'list_agents': {
+      const project = str('project');
+      const list = agents
+        .filter((a) => !project || a.project === project)
+        .map(({ name, description, id, status, project: p }) => ({ name, description, id, status, project: p, version: 'c41f', updated: '2026-11-26T18:51:45Z' }));
+      return ok({ agents: list });
     }
     case 'agent_details': {
       const a = agents.find((x) => x.name === str('agent') || x.id === str('agent'));
       if (!a) return fail('No agent with that name');
       return ok({
         ...a,
+        how_it_runs: a.kind === 'chat' ? 'chat' : 'inputs',
         updated: '2026-11-20T11:38:44Z',
         tags: a.status === 'published' ? ['v1.2'] : [],
         ...(args.include_definition ? { definition: definitionFor(a) } : {}),
@@ -462,6 +495,13 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
       return startRun(message, str('project') ?? 'AI-Marketing', str('conversation_id'));
     }
     case 'get_run': {
+      const past = recentRuns.find((r) => r.run_id === str('run_id'));
+      // Like the gateway: older chat sessions can't be reopened.
+      if (past?.run_id === 'r-5') return fail("⚠️ That item doesn't exist, or you can't open it. (Session not found)");
+      if (past && !runs.has(past.run_id)) {
+        const a = agents.find((x) => x.name === past.agent);
+        runs.set(past.run_id, { message: past.summary, project: a?.project ?? 'AI-Marketing', agent: past.agent, conversation_id: past.run_id, startedAt: Date.now() - 4200 });
+      }
       const run = runs.get(str('run_id') ?? '');
       if (!run) return fail('Unknown run_id');
       await new Promise((r) => setTimeout(r, 1400));
@@ -538,7 +578,10 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
     }
     case 'recent_runs': {
       const agent = str('agent');
-      return ok({ runs: recentRuns.filter((r) => !agent || r.agent === agent) });
+      const a = agents.find((x) => x.name === agent || x.id === agent);
+      // Like the gateway: drafts have no run list.
+      if (a?.status === 'draft') return fail(`⚠️ That item doesn't exist, or you can't open it. (no agent you can use matches "${agent}")`);
+      return ok({ runs: recentRuns.filter((r) => !agent || r.agent === a?.name) });
     }
     case 'source_status': {
       const project = str('project') ?? 'AI-Marketing';

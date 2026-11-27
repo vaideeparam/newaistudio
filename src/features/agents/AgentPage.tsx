@@ -7,6 +7,7 @@ import { useTool } from '../../lib/useTool';
 import { useChats } from '../chat/store';
 import { Contract, Flow, type Definition } from './Definition';
 import { DesignSteps } from './DesignSteps';
+import { RunForm, humanize, isRuntimeInput } from './RunForm';
 import { callTool } from '../../lib/mcp';
 
 interface Details {
@@ -58,7 +59,7 @@ export function AgentPage() {
   const versions = useTool<Versions>('agent_versions', { agent: key, limit: 5 });
   const runs = useTool<Runs>('recent_runs', { agent: key, limit: 6 });
   const sched = useTool<Schedules>('list_schedules', { agent: key });
-  const { start, reopen } = useChats();
+  const { start, reopen, conversations } = useChats();
   const nav = useNavigate();
   const open = (r: { run_id: string; summary?: string; when: string }) =>
     nav(`/c/${reopen({ kind: 'agent', name: d?.name ?? key, id: d?.id ?? id, project: d?.project ?? summary?.project }, r.run_id, r.summary ?? `Run of ${fmt(r.when)}`, workspace)}`);
@@ -98,15 +99,65 @@ export function AgentPage() {
     ...(versions.data?.versions ?? []).slice(0, 10).map((v) => ({ value: v.version, label: `${v.version} · ${cleanMsg(v.message).slice(0, 40)}` })),
   ];
 
-  const [inputs, setInputs] = useState<Record<string, string>>({});
-  // A form agent's main input is typed in the composer; any other fields sit above it.
-  const mainInput = d?.inputs?.find((i) => i.required) ?? d?.inputs?.[0];
-  const extraInputs = d?.inputs?.filter((i) => i !== mainInput) ?? [];
+  // Chat minds take one message the chat runtime fills in; DAG minds with several or structured inputs get a proper form.
+  const userInputs = (d?.inputs ?? []).filter((i) => !isRuntimeInput(i));
+  const chatMind = d?.how_it_runs === 'chat' || userInputs.length === 0;
+  const useForm = !chatMind && (userInputs.length > 1 || userInputs.some((i) => i.type === 'json'));
+  const single = !chatMind && !useForm ? userInputs[0] : undefined;
+  const target = { kind: 'agent' as const, name: d?.name ?? key, id: d?.id ?? id, project: d?.project ?? summary?.project, version: version || undefined };
 
   const run = (text: string) => {
-    const filled = mainInput ? { ...inputs, [mainInput.name]: text } : undefined;
-    nav(`/c/${start({ kind: 'agent', name: d?.name ?? key, id: d?.id ?? id, project: d?.project ?? summary?.project, version: version || undefined }, text, workspace, [], filled)}`);
+    const filled = single ? { [single.name]: text } : undefined;
+    nav(`/c/${start(target, text, workspace, [], filled)}`);
   };
+  const runForm = (values: Record<string, unknown>, text: string) => nav(`/c/${start(target, text, workspace, [], values)}`);
+
+  const placeholder = single
+    ? single.description && single.description.length < 70
+      ? single.description
+      : `Enter ${humanize(single.name).toLowerCase()}`
+    : `Message ${d?.name ?? 'this agent'}`;
+  const runner = (autoFocus: boolean) =>
+    useForm ? (
+      <RunForm key={d?.id} inputs={d?.inputs ?? []} agentName={d?.name ?? key} onRun={runForm} />
+    ) : (
+      <Composer target={{ kind: 'agent', name: d?.name ?? key, id: d?.id ?? id }} lockTarget autoFocus={autoFocus} onSubmit={run} placeholder={placeholder} />
+    );
+
+  // Runs started from this app, kept on this device: the only history a draft has until Studio lists its runs.
+  const gatewayRuns = runs.data?.runs ?? [];
+  const known = new Set(gatewayRuns.map((r) => r.run_id));
+  const localRuns = conversations
+    .filter((c) => c.target.kind === 'agent' && (c.target.id === (d?.id ?? id) || c.target.name === (d?.name ?? key)))
+    .filter((c) => !c.turns.some((t) => t.runId && known.has(t.runId)) && !(c.conversationId && known.has(c.conversationId)));
+  const history = [
+    ...gatewayRuns.map((r) => ({ key: r.run_id, label: r.summary ?? r.kind ?? 'Run', when: r.when, status: r.status, cost: r.cost_usd, go: () => open(r), local: false })),
+    ...localRuns.map((c) => {
+      const last = c.turns[c.turns.length - 1];
+      return {
+        key: c.id,
+        label: c.title,
+        when: new Date(c.updatedAt).toISOString(),
+        status: last?.state === 'running' ? 'running' : last?.state === 'error' ? 'failed' : 'completed',
+        cost: c.turns.reduce((n, t) => n + (t.costUsd ?? 0), 0) || undefined,
+        go: () => nav(`/c/${c.id}`),
+        local: true,
+      };
+    }),
+  ].sort((a, b) => b.when.localeCompare(a.when));
+  const historyNote = runs.error ? "Studio doesn't list a draft's runs yet, so this shows the runs started from this app on this device." : null;
+  const historyRows = (n?: number) =>
+    history.slice(0, n).map((r) => (
+      <button key={r.key} type="button" className="mini-row mini-row--btn" onClick={r.go} title="Open this run">
+        <span className={`dot dot--${r.status}`} />
+        <span className="mini-row__main">{r.label}</span>
+        {r.local && <span className="pill pill--quiet">this device</span>}
+        <span className="muted small as-mono">
+          {fmt(r.when)}
+          {r.cost != null && ` · $${r.cost.toFixed(3)}`}
+        </span>
+      </button>
+    ));
 
   const [params, setParams] = useSearchParams();
   const editing = params.get('edit') === '1';
@@ -121,53 +172,37 @@ export function AgentPage() {
         <Link to="/agents" className="crumb">
           <Icon name="chevron" size={12} className="flip" /> Agents
         </Link>
-        <div className="agent-hero">
+        <header className="agent-hero">
           <div className="agent-hero__icon">
-            <Icon name="agent" size={22} />
+            <Icon name="agent" size={20} />
           </div>
           <div className="agent-hero__text">
-            <h1 className="as-display page__title">{d?.name ?? summary?.name ?? 'Agent'}</h1>
-            {firstSentence && <p className="agent-hero__desc">{firstSentence}</p>}
+            <h1 className="agent-hero__title">{d?.name ?? summary?.name ?? 'Agent'}</h1>
+            <div className="agent-hero__meta">
+              {d?.status && <span className={`pill pill--${d.status}`}>{d.status === 'draft' ? 'Draft' : 'Published'}</span>}
+              <span className="pill">{chatMind ? 'Chat' : 'Form · API'}</span>
+              {(d?.project ?? summary?.project) && <span className="muted small">{d?.project ?? summary?.project}</span>}
+            </div>
           </div>
-          <div className="page__actions">
-            <Link to={`/routines?new=1&agent=${encodeURIComponent(d?.name ?? key)}`} className="as-btn as-btn--ghost">
-              <Icon name="routine" size={14} /> Schedule
+          <div className="agent-hero__actions">
+            <Link to={`/routines?new=1&agent=${encodeURIComponent(d?.name ?? key)}`} className="as-btn as-btn--ghost" aria-label="Schedule">
+              <Icon name="routine" size={14} /> <span className="btn-label">Schedule</span>
             </Link>
-            <button type="button" className="as-btn as-btn--ghost" onClick={() => setParams({ edit: '1' })}>
-              <Icon name="pencil" size={14} /> Edit
+            <button type="button" className="as-btn as-btn--ghost" onClick={() => setParams({ edit: '1' })} aria-label="Edit">
+              <Icon name="pencil" size={14} /> <span className="btn-label">Edit</span>
             </button>
           </div>
-        </div>
+          {firstSentence && <p className="agent-hero__desc">{firstSentence}</p>}
+        </header>
 
-        {extraInputs.length > 0 && (
-          <div className="inputs">
-            {extraInputs.map((i) => (
-              <label key={i.name} className="field">
-                <span className="field__label">{i.name}</span>
-                <input
-                  className="field__input"
-                  placeholder={i.description ?? i.type}
-                  value={inputs[i.name] ?? ''}
-                  onChange={(e) => setInputs((v) => ({ ...v, [i.name]: e.target.value }))}
-                />
-              </label>
-            ))}
-          </div>
-        )}
-        <Composer
-          target={{ kind: 'agent', name: d?.name ?? key, id: d?.id ?? id }}
-          lockTarget
-          autoFocus
-          onSubmit={run}
-          placeholder={mainInput ? (mainInput.description ?? `Enter ${mainInput.name}`) : `Message ${d?.name ?? 'this agent'}`}
-        />
+        {runner(true)}
 
         <div className="agent-trust">
           <span className="as-status as-status--governed">Runs inside {workspace ?? 'your workspace'}</span>
           {steps.length > 0 && (
             <span className="muted small">
               {orchestrated
-                ? `An AI orchestrator with ${steps.length - 1} tool${steps.length === 2 ? '' : 's'} it may call`
+                ? steps.length === 1 ? "An AI orchestrator (no tools connected yet)" : `An AI orchestrator with ${steps.length - 1} tool${steps.length === 2 ? "" : "s"} it may call`
                 : `${steps.length} steps · ${modelSteps === 1 ? 'one AI step' : `${modelSteps} AI steps`}, the rest checked by code`}
             </span>
           )}
@@ -186,16 +221,11 @@ export function AgentPage() {
           </section>
         )}
 
-        {(runs.data?.runs?.length ?? 0) > 0 && (
+        {(history.length > 0 || historyNote) && (
           <section className="agent-sec">
             <div className="as-label sub-head">Recent</div>
-            {runs.data!.runs!.slice(0, 6).map((r) => (
-              <button key={r.run_id} type="button" className="mini-row mini-row--btn" onClick={() => open(r)} title="Open this run">
-                <span className={`dot dot--${r.status}`} />
-                <span className="mini-row__main">{r.summary ?? r.kind}</span>
-                <span className="muted small">{fmt(r.when)}</span>
-              </button>
-            ))}
+            {historyRows(8)}
+            {historyNote && <p className="muted small">{history.length ? historyNote : "Studio doesn't list a draft's runs yet. Runs you start here will show up in this list."}</p>}
           </section>
         )}
       </div>
@@ -279,30 +309,7 @@ export function AgentPage() {
               </select>
             </label>
           </div>
-          {extraInputs.length > 0 && (
-            <div className="inputs">
-              {extraInputs.map((i) => (
-                <label key={i.name} className="field">
-                  <span className="field__label">
-                    {i.name}
-                    {i.required && <span className="req">required</span>}
-                  </span>
-                  <input
-                    className="field__input"
-                    placeholder={i.description ?? i.type}
-                    value={inputs[i.name] ?? ''}
-                    onChange={(e) => setInputs((v) => ({ ...v, [i.name]: e.target.value }))}
-                  />
-                </label>
-              ))}
-            </div>
-          )}
-          <Composer
-            target={{ kind: 'agent', name: d?.name ?? key, id: d?.id ?? id }}
-            lockTarget
-            onSubmit={run}
-            placeholder={mainInput ? (mainInput.description ?? `Enter ${mainInput.name}`) : `Message ${d?.name ?? 'this agent'}`}
-          />
+          {runner(false)}
           <div className="zone-head">
             <span className="as-label">Routines</span>
           </div>
@@ -353,17 +360,8 @@ export function AgentPage() {
           {tab === 'runs' && (
             <div>
               <div className="as-label sub-head">Recent runs</div>
-              {runs.data?.runs?.map((r) => (
-                <button key={r.run_id} type="button" className="mini-row mini-row--btn" onClick={() => open(r)} title="Open this run">
-                  <span className={`dot dot--${r.status}`} />
-                  <span className="mini-row__main">{r.summary ?? r.kind}</span>
-                  <span className="muted small as-mono">
-                    {fmt(r.when)}
-                    {r.cost_usd != null && ` · $${r.cost_usd.toFixed(3)}`}
-                  </span>
-                </button>
-              ))}
-              {runs.error && <p className="muted small">Studio lists run history for published agents only, so a draft's runs don't show here yet.</p>}
+              {historyRows()}
+              {historyNote && <p className="muted small">{historyNote}</p>}
               <div className="as-label sub-head">Versions</div>
               {versions.data?.versions?.map((v) => (
                 <div key={v.version} className="mini-row">

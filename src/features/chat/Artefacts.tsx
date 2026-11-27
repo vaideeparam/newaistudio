@@ -30,7 +30,7 @@ export function ArtefactCards({ artefacts, project }: { artefacts: Artefact[]; p
           key={a.artefact_key ?? i}
           type="button"
           className="arte-card"
-          onClick={() => open({ title: a.title, wide: true, body: <ArtefactViewer a={a} project={project} /> })}
+          onClick={() => open({ title: prettyTitle(a.title), wide: true, body: <ArtefactViewer a={a} project={project} /> })}
         >
           <span className="arte-card__icon">
             <Icon name="page" size={18} />

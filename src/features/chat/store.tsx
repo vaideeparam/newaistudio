@@ -29,6 +29,10 @@ export interface Turn {
   runId?: string;
   error?: string;
   artefacts?: Artefact[];
+  /** A gentle explanation shown instead of an answer (e.g. an older run Studio no longer keeps). */
+  note?: string;
+  /** Reopened run whose answer Studio no longer has. */
+  expired?: boolean;
 }
 
 /** A page, report or table an answer made (observed live 2026-11-27 on get_run). */
@@ -53,7 +57,7 @@ export interface Conversation {
   /** Connector ids switched on for this conversation (from the composer's + menu). */
   connectors?: string[];
   /** Form agents: the inputs the first run was started with. */
-  inputs?: Record<string, string>;
+  inputs?: Record<string, unknown>;
   conversationId?: string;
   turns: Turn[];
   updatedAt: number;
@@ -123,7 +127,7 @@ function load(): Conversation[] {
 interface ChatState {
   conversations: Conversation[];
   get: (id: string) => Conversation | undefined;
-  start: (target: Target, question: string, workspace?: string, connectors?: string[], inputs?: Record<string, string>) => string;
+  start: (target: Target, question: string, workspace?: string, connectors?: string[], inputs?: Record<string, unknown>) => string;
   setConnectors: (id: string, connectors: string[]) => void;
   send: (id: string, question: string) => void;
   remove: (id: string) => void;
@@ -211,7 +215,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 
   const start = useCallback(
-    (target: Target, question: string, workspace?: string, connectors: string[] = [], inputs?: Record<string, string>) => {
+    (target: Target, question: string, workspace?: string, connectors: string[] = [], inputs?: Record<string, unknown>) => {
       const turn: Turn = { id: uid('t'), question, state: 'running', steps: [], citations: [] };
       const conv: Conversation = {
         id: uid('c'),
@@ -272,10 +276,21 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           }),
         )
         .catch((e) =>
-          patchTurn(conv.id, turn.id, {
-            state: 'error',
-            error: `Studio can't reopen this run any more (${e instanceof Error ? e.message : String(e)}). Its summary is kept in the agent's history.`,
-          }),
+          // Older chat sessions expire on the gateway: keep what we know and offer to run it again.
+          patchTurn(
+            conv.id,
+            turn.id,
+            {
+              state: 'done',
+              answer: '',
+              artefacts: [],
+              expired: true,
+              note: /not found|doesn't exist/i.test(e instanceof Error ? e.message : String(e))
+                ? "Studio no longer keeps the full answer for this older run, only its summary. Run it again to get a fresh answer."
+                : `Studio couldn't open this run just now (${e instanceof Error ? e.message : String(e)}).`,
+            },
+            { conversationId: undefined },
+          ),
         );
       return conv.id;
     },
