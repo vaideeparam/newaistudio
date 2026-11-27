@@ -42,10 +42,16 @@ export const LIVE_TOOLS = [
   'control_schedule',
   'show_artefact',
   'save_artefact',
+  'project_status',
+  'connect_source',
+  'disconnect_source',
+  'browse_source',
+  'add_files',
+  'retry_file',
 ] as const;
 
 /** Screens whose backend tool doesn't exist yet: they keep sample data, labelled as such. */
-export const SAMPLE_ONLY = new Set(['knowledge_graph', 'governance_summary', 'audit_log', 'resolve_context']);
+export const SAMPLE_ONLY = new Set(['governance_summary', 'audit_log']);
 
 interface McpError {
   code: string;
@@ -111,10 +117,25 @@ export async function liveCall<T>(tool: string, args: Record<string, unknown>): 
   if (!mcp) throw new ConnectorError('unavailable', 'This view did not grant the page access to your connectors. Open the page in claude.ai and allow ai/Studio from its Permissions menu.');
   try {
     const r = await mcp.callTool(CONNECTOR, tool, args);
-    return withResources(r.payload, r.content) as T;
+    return withCardMeta(withResources(r.payload, r.content), (r as { _meta?: Record<string, unknown> })._meta) as T;
   } catch (e) {
     throw new ConnectorError((e as McpError).code ?? 'upstream_error', explain(e));
   }
+}
+
+/**
+ * The gateway puts what only its cards show in the result's `_meta` (mcp-service server.py `_result`):
+ * `io.paramstudio/page` = the whole artefact {format: 'html' | 'markdown' | 'text', content} on show_artefact,
+ * `io.paramstudio/live` = a run's live view, `io.paramstudio/card` = what a card needs (e.g. connect_source's sign-in
+ * link). Kept as `__page` / `__live` / `__card` when the viewer passes `_meta` through.
+ */
+export function withCardMeta(payload: unknown, meta: Record<string, unknown> | undefined): unknown {
+  if (!meta || !payload || typeof payload !== 'object' || Array.isArray(payload)) return payload;
+  const page = meta['io.paramstudio/page'];
+  const live = meta['io.paramstudio/live'];
+  const card = meta['io.paramstudio/card'];
+  if (!page && !live && !card) return payload;
+  return { ...(payload as object), ...(page ? { __page: page } : {}), ...(live ? { __live: live } : {}), ...(card ? { __card: card } : {}) };
 }
 
 /** An MCP-UI / embedded resource a tool returned beside its JSON (e.g. the HTML page behind a card). */

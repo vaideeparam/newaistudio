@@ -76,9 +76,11 @@ interface RunResponse {
   /** needs_inputs / awaiting approval / failed runs explain themselves here. */
   message?: string;
   question?: string;
-  missing?: string[];
+  missing?: Array<string | { name?: string; label?: string }>;
+  invalid?: Array<{ field?: string; label?: string; problem?: string }>;
   error?: string;
   output?: unknown;
+  outputs?: unknown;
   artefacts?: Artefact[];
   cost?: { usd?: number; tokens?: number };
   __resources?: { uri?: string; mimeType?: string; text?: string }[];
@@ -97,13 +99,64 @@ function artefactsOf(r: RunResponse | undefined): Artefact[] {
 }
 
 /** What to show when a run ends without a plain answer (form agents, questions, failures). */
+/**
+ * A pipeline's answer is often its last model step's JSON ({"headline": …, "insights": […]}).
+ * Shown as a short document instead of raw JSON; anything else is left as it is.
+ */
+export function readableAnswer(answer: string | undefined): string | undefined {
+  if (!answer || !/^[{[]/.test(answer)) return answer;
+  let v: unknown;
+  try {
+    v = JSON.parse(answer);
+  } catch {
+    return answer;
+  }
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return answer;
+  const label = (k: string) => k.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+  const parts: string[] = [];
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    if (val == null || val === '') continue;
+    if (/^(headline|title|summary)$/i.test(k) && typeof val === 'string' && !parts.length) parts.push(`**${val}**`);
+    else if (Array.isArray(val)) parts.push(`### ${label(k)}\n\n${val.map((x) => `- ${typeof x === 'string' ? x : JSON.stringify(x)}`).join('\n')}`);
+    else if (typeof val === 'object') parts.push(`### ${label(k)}\n\n\`\`\`json\n${JSON.stringify(val, null, 2)}\n\`\`\``);
+    else parts.push(`### ${label(k)}\n\n${String(val)}`);
+  }
+  return parts.join('\n\n') || answer;
+}
+
+/** A pipeline's outputs in plain words: short values as a list, long ones point at their page. */
+export function outputsText(outs: unknown): string {
+  if (outs == null || typeof outs !== 'object' || Array.isArray(outs)) return '```\n' + JSON.stringify(outs, null, 2) + '\n```';
+  const o = outs as Record<string, unknown>;
+  if (o.truncated && typeof o.preview === 'string') return 'The outputs are long; the start is shown.\n\n```\n' + o.preview + '\n```';
+  const lines: string[] = [];
+  for (const [k, v] of Object.entries(o)) {
+    const label = k.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+    if (typeof v === 'string') {
+      const page = /\(in full: the artefact "([^"]+)"\)\s*$/.exec(v);
+      lines.push(page ? `- **${label}**: opens as the page “${page[1]}” below.` : `- **${label}**: ${v}`);
+    } else if (typeof v === 'number' || typeof v === 'boolean') lines.push(`- **${label}**: ${v}`);
+    else lines.push(`- **${label}**:\n\n\`\`\`json\n${JSON.stringify(v, null, 2)}\n\`\`\``);
+  }
+  return lines.length ? `**Outputs**\n\n${lines.join('\n')}` : 'The run finished with no outputs.';
+}
+
 function fallbackText(r: RunResponse | undefined): string {
   if (!r) return '';
   if (r.error) return `The run failed: ${r.error}`;
-  if (r.status === 'needs_inputs') return `${r.message ?? 'This agent needs more inputs.'}${r.missing?.length ? ` Missing: ${r.missing.join(', ')}.` : ''}`;
+  if (r.status === 'needs_inputs') {
+    const missing = (r.missing ?? []).map((m) => (typeof m === 'string' ? m : m.label || m.name || '')).filter(Boolean);
+    const invalid = (r.invalid ?? []).map((i) => i.problem || i.label || i.field || '').filter(Boolean);
+    return [
+      r.message ?? 'Nothing was run yet: this mind needs a few more details.',
+      missing.length ? `Still needed: ${missing.join(', ')}.` : '',
+      invalid.length ? `To fix: ${invalid.join('; ')}.` : '',
+    ].filter(Boolean).join(' ');
+  }
   if (r.question) return r.question;
   if (r.message) return r.message;
-  if (r.output != null) return '```\n' + JSON.stringify(r.output, null, 2) + '\n```';
+  const outs = r.outputs ?? r.output;
+  if (outs != null) return outputsText(outs);
   return '';
 }
 
@@ -179,6 +232,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           delete args.message;
         }
         if (conv.target.kind === 'agent' && conv.target.version) args.version = conv.target.version;
+        // The person pressed Run in this app's own form or composer, so the gateway shouldn't answer with its Run form.
+        if (conv.target.kind === 'agent') args.confirmed = true;
         if (conv.conversationId) args.conversation_id = conv.conversationId;
         else args.new_conversation = true;
 
@@ -196,7 +251,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           turn.id,
           {
             state: 'done',
-            answer: r?.answer?.trim() || fallbackText(r),
+            answer: readableAnswer(r?.answer?.trim()) || fallbackText(r),
             citations: normalizeCitations(r?.citations),
             steps: r?.steps ?? [],
             tookS: r?.took_s,

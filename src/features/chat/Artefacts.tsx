@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePanel } from '../../app/panel';
 import { Icon } from '../../components/Icon';
 import { callTool } from '../../lib/mcp';
@@ -10,6 +10,10 @@ interface ShowResult {
   html?: string;
   format?: string;
   __resources?: { uri?: string; mimeType?: string; text?: string }[];
+  /** The whole artefact, from the result's card-only _meta (mcp-service viewer_app.py). */
+  __page?: { format?: string; content?: string };
+  /** The whole artefact, when asked for with include_page (gateway patch 02). */
+  page?: { format?: string; content?: string };
 }
 
 const isHtml = (s?: string) => !!s && /^\s*(<!doctype|<html|<div|<section|<body|<head|<style)/i.test(s);
@@ -54,6 +58,22 @@ const prettyTitle = (t: string) => {
 };
 const firstLine = (s?: string) => s?.split('\n').find((l) => l.trim().length > 12)?.slice(0, 70);
 
+// Newer gateways return the whole page in the result when asked (include_page); older ones reject the flag,
+// so it is tried once and then left off. The page may also arrive in the card data (__page).
+let includePage = true;
+async function showArtefact(key: string, project?: string): Promise<ShowResult> {
+  const base = { artefact_key: key, ...(project ? { project } : {}) };
+  if (includePage) {
+    try {
+      return await callTool<ShowResult>('show_artefact', { ...base, include_page: true });
+    } catch (e) {
+      if (!/include_page|unexpected|unknown|additional|invalid/i.test(e instanceof Error ? e.message : String(e))) throw e;
+      includePage = false;
+    }
+  }
+  return callTool<ShowResult>('show_artefact', base);
+}
+
 export function ArtefactViewer({ a, project }: { a: Artefact; project?: string }) {
   const [html, setHtml] = useState<string | undefined>(a.html ?? (isHtml(a.content) ? a.content : undefined));
   const [text, setText] = useState<string | undefined>(a.content);
@@ -64,14 +84,22 @@ export function ArtefactViewer({ a, project }: { a: Artefact; project?: string }
   const [err, setErr] = useState<string | null>(null);
 
   // Ask Studio for the page itself: show_artefact may carry the HTML as an MCP-UI resource.
+  // Runs once per artefact: setting the page must not cancel the request that brought it (that left "Opening…").
+  const known = useRef(Boolean(html));
   useEffect(() => {
-    if (html || !a.artefact_key) return;
+    if (known.current || !a.artefact_key) return;
     let live = true;
-    callTool<ShowResult>('show_artefact', { artefact_key: a.artefact_key, ...(project ? { project } : {}) })
+    showArtefact(a.artefact_key, project)
       .then((r) => {
         if (!live) return;
         const res = r?.__resources?.find((x) => /html/.test(x.mimeType ?? '') && x.text);
-        const page = res?.text ?? r?.html ?? (isHtml(r?.content) ? r?.content : undefined);
+        const card = r?.page ?? r?.__page;
+        const whole = card?.format === 'html' ? card.content : undefined;
+        const page = whole ?? res?.text ?? r?.html ?? (isHtml(r?.content) ? r?.content : undefined);
+        if (!page && card?.content) {
+          setText(card.content);
+          return;
+        }
         if (page) setHtml(page);
         else if (r?.content) setText(r.content);
       })
@@ -82,7 +110,7 @@ export function ArtefactViewer({ a, project }: { a: Artefact; project?: string }
     return () => {
       live = false;
     };
-  }, [a.artefact_key, html, project]);
+  }, [a.artefact_key, project]);
 
   const download = async () => {
     const filename = html ? a.title.replace(/(\.html?)?$/i, '.html') : a.title.replace(/\.html?$/i, '') + '.txt';

@@ -23,6 +23,7 @@ const isLong = (i: AgentInput) => wantsJson(i) || (i.description?.length ?? 0) >
 /** Parses JSON-looking values so the agent gets objects and lists, and leaves plain text as text. */
 function valueOf(i: AgentInput, raw: string): unknown {
   const t = raw.trim();
+  if ((i.type === 'number' || i.type === 'integer') && t !== '' && Number.isFinite(Number(t))) return Number(t);
   if (wantsJson(i) && /^[[{]/.test(t)) {
     try {
       return JSON.parse(t);

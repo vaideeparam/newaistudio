@@ -12,6 +12,7 @@ const SIZES = ['phone', 'desktop'];
 const LEADGEN = 'e76458bf'; // DAG mind, published, 9 inputs (2 required, JSON)
 const MLX = 'e3651acd'; // orchestrator chat mind, draft
 const PM = 'f195e6ea'; // published chat mind with gateway run history
+const PULSE = 'dc9552b2'; // DAG mind: custom_python → llm_prompt → custom_python dashboard, draft
 
 async function done(p) {
   assert.deepEqual(p.errors, [], `page errors: ${p.errors.join(' | ')}`);
@@ -25,6 +26,7 @@ for (const size of SIZES) {
       ['Agents', 'Agents'],
       ['Routines', 'Routines'],
       ['Chats', 'Chats'],
+      ['Knowledge', 'Knowledge'],
       ['Connectors', 'Connectors'],
       ['Governance', 'Governance'],
     ]) {
@@ -268,6 +270,86 @@ for (const size of SIZES) {
     await r.locator('.agent-hero__title', { hasText: 'AI-Studio-PM' }).waitFor();
     // The agent name in the chat header opens the agent too.
     await done(r);
+  });
+
+  test(`[${size}] J16 DAG mind: synthetic data, AI analysis, dashboard page`, async () => {
+    const p = await open(size, `/agents/${PULSE}`);
+    const form = p.getByRole('form', { name: /Run Sales Pulse Dashboard/ });
+    await form.waitFor();
+    // Two optional number inputs: shown straight away, no required chip, Run allowed empty.
+    assert.deepEqual(await form.locator('.rf-field__label').allTextContents(), ['Seed', 'Months']);
+    assert.equal(await form.getByLabel('Seed').getAttribute('type'), 'number');
+    await form.getByLabel('Seed').fill('7');
+    await shot(p, 'j16-form');
+    await form.getByRole('button', { name: 'Run' }).click();
+    await p.locator('.as-turn--user').getByText('Seed: 7').waitFor();
+    // The analysis step's JSON reads as a short document, not raw JSON.
+    const md = p.locator('.md').first();
+    await md.getByText('Recommendation').waitFor({ timeout: 10000 });
+    assert.ok(!(await md.textContent()).includes('{"headline"'), 'raw JSON answer');
+    await p.locator('.arte-card', { hasText: 'Dashboard' }).click();
+    const frame = p.locator('.arte-frame');
+    await frame.waitFor();
+    await p.frameLocator('.arte-frame').getByText('Revenue by region').waitFor();
+    assert.ok(await p.frameLocator('.arte-frame').locator('svg rect').count() >= 4, 'chart missing from the dashboard');
+    await shot(p, 'j16-dashboard');
+    await done(p);
+  });
+
+  test(`[${size}] J17 Knowledge: real project status and documents`, async () => {
+    const p = await open(size, '/knowledge');
+    await p.getByRole('heading', { level: 1, name: 'Knowledge' }).waitFor();
+    await p.locator('.kn-stat__n', { hasText: '49' }).first().waitFor();
+    assert.equal(await p.getByText('Sample data').count(), 0, 'Knowledge still labelled as sample data');
+    await p.locator('.kn-doc').first().waitFor();
+    assert.equal(await p.locator('.kn-doc').count(), 20, 'first page of documents');
+    await p.getByRole('button', { name: 'Show more' }).click();
+    await p.waitForFunction(() => document.querySelectorAll('.kn-doc').length > 20);
+    // Failed documents: filter, then retry one.
+    await p.getByRole('button', { name: /failed · show them/ }).click();
+    await p.waitForFunction(() => document.querySelectorAll('.kn-doc').length === 2);
+    await p.locator('.kn-doc').first().getByRole('button', { name: 'Retry' }).click();
+    await p.getByText('Retrying that document.').waitFor();
+    assert.ok((await overflowX(p)) <= 1, 'Knowledge scrolls sideways');
+    await shot(p, 'j17-knowledge');
+    // Asking goes to a project chat with sources.
+    await p.getByPlaceholder(/Ask AI-Marketing a question/).fill('What did we launch in Q3?');
+    await p.getByRole('button', { name: 'Ask', exact: true }).click();
+    await p.locator('.as-turn--user').getByText('What did we launch in Q3?').waitFor();
+    await done(p);
+  });
+
+  test(`[${size}] J18 Connectors: sign in, browse, add, disconnect with confirm`, async () => {
+    const p = await open(size, '/connectors');
+    await p.getByRole('heading', { level: 1, name: 'Connectors' }).waitFor();
+    // Only what the gateway really offers, and a plain note for the rest.
+    await p.getByText("Not through ai/Studio's gateway yet").waitFor();
+    assert.equal(await p.getByRole('button', { name: /Test and connect/ }).count(), 0, 'fake connect form still there');
+    await p.getByText('49 of 49 files').waitFor();
+    // Connect Microsoft (the sign-in opens in a new tab).
+    const popup = p.ctx.waitForEvent('page');
+    await p.getByRole('button', { name: 'Connect Microsoft' }).click();
+    await (await popup).close();
+    await p.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await p.getByRole('button', { name: 'Add from OneDrive' }).waitFor();
+    await shot(p, 'j18-connected');
+    // Browse, pick, add.
+    await p.getByRole('button', { name: 'Add from OneDrive' }).click();
+    await p.getByRole('button', { name: 'Marketing' }).click();
+    await p.getByLabel('Choose Q4 plan.docx').check();
+    await p.getByRole('button', { name: 'Balanced' }).click();
+    await shot(p, 'j18-browse');
+    await p.getByRole('button', { name: /^Add 1 to AI-Marketing/ }).click();
+    await p.getByText(/Added 1 to AI-Marketing/).waitFor();
+    if (size === 'phone' || (await p.getByRole('button', { name: 'Close panel' }).count())) await p.getByRole('button', { name: 'Close panel' }).click();
+    // Disconnect asks first, with Studio's own warning.
+    await p.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    const dlg = p.getByRole('alertdialog', { name: 'Disconnect Microsoft' });
+    await dlg.getByText(/documents already added stay/).waitFor();
+    await dlg.getByRole('button', { name: 'Disconnect Microsoft' }).click();
+    await p.getByRole('button', { name: 'Connect Microsoft' }).waitFor();
+    assert.ok((await overflowX(p)) <= 1, 'Connectors scrolls sideways');
+    await done(p);
   });
 
   test(`[${size}] J10 ask a project, with numbered sources`, async () => {

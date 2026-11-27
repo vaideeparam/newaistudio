@@ -28,6 +28,10 @@ runs, agent_details inputs with type/required). Shapes were last checked live on
 | J14 | Open a Studio page | Text-only page laid out as a document (title, sections, tiles, formulas); one scroll container so scrolling never stalls; a page with HTML fills the pane; stays readable in dark mode |
 | J15 | Ways back | Back from a reopened run returns to the agent; crumbs from agent and designer; Back from a chat returns to Chats; a chat opened directly goes back to its agent |
 
+| J16 | DAG mind (custom_python → llm_prompt → custom_python) | Optional number inputs shown, numbers sent as numbers; the analysis JSON reads as a document; the dashboard page opens in a frame with its chart |
+| J17 | Knowledge | Real project status (documents, ready, failed); documents page by page; failed filter and Retry; ask goes to a project chat |
+| J18 | Connectors | Only real file sources; sign-in opens in a new tab and is picked up on return; browse, pick, choose how Studio reads them, add; disconnect asks first with Studio's warning; a plain note for what the gateway can't connect |
+
 ## Not yet automated
 
 - Against the live gateway: the preview runs inside claude.ai through your
@@ -35,4 +39,4 @@ runs, agent_details inputs with type/required). Shapes were last checked live on
   checked by calling the gateway directly when they change.
 - Saving, publishing and tagging an agent (they change real agents; covered by
   confirm steps in the UI).
-- Knowledge graph and governance pages (still sample data).
+- Governance (no gateway tool: still sample data, labelled). The knowledge graph itself has no gateway tool, so Knowledge shows documents and says so.

@@ -2,7 +2,8 @@
  * Canned Studio MCP responses so the UI can be built and demoed without a live session.
  * Shapes follow what the real ai/Studio MCP returned on 2026-11-25 (whoami, list_projects,
  * find_agents, agent_details, list_schedules, recent_runs, source_status, ask_project, get_run).
- * Tools marked GUESS below have no observed shape yet (knowledge graph, governance, audit).
+ * Tools marked GUESS below have no gateway tool at all (governance, audit): their screen says so.
+ * File sources, documents and pipeline runs follow mcp-service tools.py (uat @ 370c6192).
  */
 import type { ToolOutcome } from './normalize.js';
 
@@ -126,6 +127,23 @@ const agents = [
     inputs: [{ name: 'message', type: 'text', required: true, description: "The user's chat message for this turn. Supplied automatically by the chat runtime — callers do not pass it." }],
     steps: [{ id: 'ml_explainer', type: 'orchestrator', name: 'ML Explainer' }],
   },
+  {
+    name: 'Sales Pulse Dashboard',
+    id: 'dc9552b2',
+    kind: 'form',
+    status: 'draft',
+    project: 'AI-Marketing',
+    description: 'Generates seeded synthetic sales data, has an LLM analyse it, and renders a self-contained HTML dashboard.',
+    inputs: [
+      { name: 'seed', type: 'number', required: false, description: 'Random seed for deterministic data generation (default 42)' },
+      { name: 'months', type: 'number', required: false, description: 'Number of months to generate (default 12)' },
+    ],
+    steps: [
+      { id: 'generate_sales_data', type: 'custom_python', name: 'Generate sales data' },
+      { id: 'analyse_numbers', type: 'llm_prompt', name: 'Analyse the numbers' },
+      { id: 'render_dashboard', type: 'custom_python', name: 'Render dashboard' },
+    ],
+  },
 ];
 
 let schedules = [
@@ -186,66 +204,11 @@ const recentRuns = [
 const tools: { name: string; description: string; inputSchema: unknown }[] = [
   'whoami', 'list_workspaces', 'list_projects', 'ask_project', 'get_run', 'find_agents', 'agent_details',
   'agent_versions', 'list_agents', 'run_agent', 'list_schedules', 'schedule_agent', 'control_schedule', 'recent_runs',
-  'source_status', 'show_artefact', 'connect_source', 'design_agent', 'get_design', 'save_agent', 'list_connectors', 'resolve_context', 'knowledge_graph', 'governance_summary', 'audit_log',
+  'source_status', 'project_status', 'search_documents', 'show_artefact', 'connect_source', 'disconnect_source',
+  'browse_source', 'add_files', 'retry_file', 'design_agent', 'get_design', 'save_agent',
+  // Not gateway tools: the Governance screen's sample data (labelled as such in the UI).
+  'governance_summary', 'audit_log',
 ].map((name) => ({ name, description: `Mock ${name}`, inputSchema: { type: 'object', properties: {} } }));
-
-// ---------- knowledge graph (GUESS: no observed shape yet) ----------
-const graph = {
-  project: 'AI-Marketing',
-  nodes: [
-    { id: 'doc', label: 'Positioning v4', type: 'document', docs: 1 },
-    { id: 's1', label: '01 Why governed runs', type: 'section' },
-    { id: 's2', label: '02 Q3 launch retro', type: 'section' },
-    { id: 's3', label: '03 Architecture', type: 'section' },
-    { id: 's4', label: '04 Pricing', type: 'section' },
-    { id: 's5', label: '05 Customer proof', type: 'section' },
-    { id: 'e1', label: 'ai/Studio', type: 'entity' },
-    { id: 'e2', label: 'Context Resolver', type: 'entity' },
-    { id: 'e3', label: 'Verified citations', type: 'entity' },
-    { id: 'e4', label: 'MCP gateway', type: 'entity' },
-    { id: 'e5', label: 'LeadGen pipeline', type: 'entity' },
-    { id: 'e6', label: 'Regulated buyers', type: 'entity' },
-    { id: 'e7', label: 'EU AI Act', type: 'entity' },
-    { id: 't1', label: 'Governance', type: 'topic' },
-    { id: 't2', label: 'Go-to-market', type: 'topic' },
-    { id: 't3', label: 'Retrieval', type: 'topic' },
-  ],
-  edges: [
-    ['doc', 's1', 'has section'], ['doc', 's2', 'has section'], ['doc', 's3', 'has section'], ['doc', 's4', 'has section'], ['doc', 's5', 'has section'],
-    ['e1', 's1', 'mentioned in'], ['e1', 's3', 'mentioned in'], ['e2', 's3', 'mentioned in'], ['e3', 's1', 'mentioned in'], ['e3', 's2', 'mentioned in'],
-    ['e4', 's3', 'mentioned in'], ['e5', 's2', 'mentioned in'], ['e6', 's2', 'mentioned in'], ['e6', 's5', 'mentioned in'], ['e7', 's1', 'mentioned in'],
-    ['s1', 't1', 'has topic'], ['s2', 't2', 'has topic'], ['s3', 't3', 'has topic'], ['s4', 't2', 'has topic'], ['s5', 't2', 'has topic'],
-    ['e2', 'e3', 'enables'], ['e1', 'e4', 'exposes'],
-  ].map(([source, target, label]) => ({ source, target, label })),
-};
-
-/** GUESS: mirrors the Resolver tab in Studio's KG page (document context + entities matched). */
-function resolve(query: string) {
-  const q = query.toLowerCase();
-  const pick = (ids: string[]) => graph.nodes.filter((n) => ids.includes(n.id));
-  const gov = /govern|audit|complian|regul|risk|act/.test(q);
-  const ids = gov ? ['e3', 'e6', 'e7', 't1', 's1', 's2'] : ['e1', 'e2', 'e4', 't3', 's3'];
-  return {
-    query,
-    model_calls: 0,
-    timing_ms: 184,
-    token_count: 2310,
-    document_context: gov
-      ? [
-          { document_name: 'Positioning v4', heading: '01 Why governed runs', score: 0.5248, summary: 'Code does what code can check; the model only enters where judgment is required. Every run carries a receipt.' },
-          { document_name: 'Positioning v4', heading: '02 Q3 launch retro', score: 0.5216, summary: 'Every enterprise call opened with: can you show me where the answer came from? Regulated buyers asked first.' },
-          { document_name: 'Positioning v4', heading: '05 Customer proof', score: 0.4976, summary: 'Two regulated customers moved from pilot to production after citation checks were shown in the run receipt.' },
-        ]
-      : [
-          { document_name: 'Positioning v4', heading: '03 Architecture', score: 0.5611, summary: 'The Context Resolver walks the graph and ranks summaries written at ingestion; no model call is made during retrieval.' },
-          { document_name: 'Positioning v4', heading: '01 Why governed runs', score: 0.4402, summary: 'ai/Studio exposes every agent through the MCP gateway, so any client can run it with the same governance.' },
-        ],
-    entities_matched: pick(ids)
-      .filter((n) => n.type === 'entity' || n.type === 'topic')
-      .map((n, i) => ({ id: n.id, name: n.label, source: i % 3 === 2 ? 'embedding' : 'document_kg', confidence: i % 3 === 2 ? 0.47 : 0.9 - i * 0.05 })),
-    highlight: ids,
-  };
-}
 
 // ---------- agent definitions (shape observed live via agent_details include_definition, 2026-11-25) ----------
 type Step = { id: string; type: string; name: string };
@@ -312,32 +275,6 @@ function definitionFor(a: { name: string; description: string; steps: Step[]; in
   };
 }
 
-// ---------- connectors (GUESS: tool name and shape not seen on the MCP yet) ----------
-const connectors = [
-  { id: 'cn-gmail-sales', type: 'gmail', name: 'Sales inbox', account: 'sales@ mailbox', status: 'connected', scope: 'workspace', access: 'read', tools: 6, projects: ['AI-Marketing'] },
-  { id: 'cn-slack-pm', type: 'slack', name: 'ai/Studio Slack', account: '#ai-aistudio-pm, #ai-aistudio-pm-followup', status: 'connected', scope: 'workspace', access: 'read_write', tools: 9, projects: ['AI-aiStudio-PM'] },
-  { id: 'cn-teamdocs', type: 'mcp', name: 'TeamDocs MCP', account: 'ai-studio › ai-pm-corner', status: 'connected', scope: 'workspace', access: 'read_write', tools: 24, projects: ['AI-aiStudio-PM'] },
-  { id: 'cn-pg-orders', type: 'postgresql', name: 'Orders DB', account: 'orders-replica · read replica', status: 'connected', scope: 'project', access: 'read', tools: 3, projects: ['PureAI'] },
-  { id: 'cn-turso', type: 'sql', name: 'Campaign workspace', account: 'Turso · leadgen', status: 'connected', scope: 'project', access: 'read_write', tools: 4, projects: ['AI-Marketing'] },
-  { id: 'cn-mongo', type: 'mongodb', name: 'Events store', account: 'events cluster', status: 'needs_auth', scope: 'project', access: 'read', tools: 3, projects: ['PureAI'] },
-  { id: 'cn-sharepoint', type: 'sharepoint', name: 'PureAI SharePoint', account: 'pureai.sharepoint.com', status: 'connected', scope: 'project', access: 'read', tools: 4, projects: ['PureAI'] },
-];
-const connectorCatalog = [
-  { type: 'gmail', label: 'Gmail', group: 'Apps', about: 'Read and draft email' },
-  { type: 'outlook', label: 'Outlook', group: 'Apps', about: 'Mail and calendar' },
-  { type: 'slack', label: 'Slack', group: 'Apps', about: 'Channels, threads and posting' },
-  { type: 'teams', label: 'Microsoft Teams', group: 'Apps', about: 'Chats and channels' },
-  { type: 'sharepoint', label: 'SharePoint', group: 'Files', about: 'Sites and libraries' },
-  { type: 'onedrive', label: 'OneDrive', group: 'Files', about: 'Your files' },
-  { type: 'gdrive', label: 'Google Drive', group: 'Files', about: 'My Drive and shared drives' },
-  { type: 'postgresql', label: 'PostgreSQL', group: 'Data', about: 'Query tables, read-only by default' },
-  { type: 'mysql', label: 'MySQL', group: 'Data', about: 'Query tables' },
-  { type: 'sql', label: 'SQL Server / Turso', group: 'Data', about: 'Any SQL database' },
-  { type: 'mongodb', label: 'MongoDB', group: 'Data', about: 'Collections and aggregations' },
-  { type: 'rest', label: 'REST API', group: 'Custom', about: 'Any HTTP API with an OpenAPI spec' },
-  { type: 'mcp', label: 'MCP server', group: 'Custom', about: 'Any remote MCP server by URL' },
-];
-
 // ---------- agent designer (GUESS: get_design shape not observed yet) ----------
 const designs = new Map<string, { request: string; stage: 'plan' | 'questions' | 'design'; approved?: boolean; answers?: Record<string, unknown> }>();
 
@@ -384,7 +321,7 @@ function designView(id: string) {
 }
 
 // ---------- ask runs ----------
-const runs = new Map<string, { message: string; project: string; agent?: string; conversation_id: string; startedAt: number }>();
+const runs = new Map<string, { message: string; project: string; agent?: string; conversation_id: string; startedAt: number; inputs?: Record<string, unknown> }>();
 let seq = 0;
 
 function startRun(message: string, project: string, conversation_id: string | undefined, agent?: string) {
@@ -463,8 +400,6 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
         ],
         tags: [{ tag: 'v1.2', version: 'c41f' }],
       });
-    case 'list_connectors':
-      return ok({ connectors, catalog: connectorCatalog });
     case 'design_agent': {
       const id = str('design_id') ?? `design-${++seq}`;
       if (!designs.has(id)) designs.set(id, { request: str('request') ?? 'helps the team', stage: 'plan' });
@@ -487,7 +422,12 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
     case 'run_agent': {
       const agent = str('agent') ?? 'agent';
       const a = agents.find((x) => x.name === agent || x.id === agent);
-      return startRun(str('message') ?? String(Object.values((args.inputs as Record<string, unknown>) ?? {})[0] ?? ''), a?.project ?? 'AI-Marketing', str('conversation_id'), a?.name ?? agent);
+      // Like the gateway: in a host with cards, a form agent run without confirmed answers with its Run form.
+      if (a?.kind === 'form' && !args.confirmed) return ok({ status: 'needs_inputs', agent: a.name, missing: [], note: 'The Run form is on the card.' });
+      const started = startRun(str('message') ?? String(Object.values((args.inputs as Record<string, unknown>) ?? {})[0] ?? ''), a?.project ?? 'AI-Marketing', str('conversation_id'), a?.name ?? agent);
+      const id = (started.data as { run_id?: string }).run_id;
+      if (id && runs.has(id)) runs.get(id)!.inputs = (args.inputs as Record<string, unknown>) ?? {};
+      return started;
     }
     case 'ask_project': {
       const message = str('message');
@@ -505,6 +445,7 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
       const run = runs.get(str('run_id') ?? '');
       if (!run) return fail('Unknown run_id');
       await new Promise((r) => setTimeout(r, 1400));
+      if (run.agent === 'Sales Pulse Dashboard') return ok(pipelineRun(String(args.run_id), run.inputs));
       return ok({
         run_id: args.run_id,
         conversation_id: run.conversation_id,
@@ -587,21 +528,63 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
       const project = str('project') ?? 'AI-Marketing';
       return ok({
         project,
-        microsoft: { connected: project === 'PureAI', account: project === 'PureAI' ? 'sharepoint · pureai.sharepoint.com' : null },
-        google: { connected: false, account: null },
+        microsoft: { connected: project === 'PureAI' || connected.has(`${project}:microsoft`), account: project === 'PureAI' ? 'sharepoint · pureai.sharepoint.com' : connected.has(`${project}:microsoft`) ? 'sample account' : null },
+        google: { connected: connected.has(`${project}:google`), account: connected.has(`${project}:google`) ? 'sample account' : null },
+        syncs: (docCounts[project] ?? 0) > 0 ? [{ run_id: `sync-${project}`, source: project.toLowerCase(), status: 'completed', files_done: docCounts[project], files_total: docCounts[project], files_failed: project === 'AI-Marketing' ? 2 : 0, started: '2026-11-21T02:00:04Z' }] : [],
         sources:
           (docCounts[project] ?? 0) > 0
             ? [{ name: project.toLowerCase(), type: project === 'PureAI' ? 'sharepoint_folder' : 'teamdocs_folder', files_indexed: docCounts[project], last_sync: '2026-11-21T02:00:10Z', last_status: 'success' }]
             : [],
       });
     }
-    case 'connect_source':
-      return ok({ link: 'https://example.invalid/connect', note: 'Mock: sign-in link would open here.' });
-    case 'knowledge_graph':
-      return ok(graph);
-    case 'resolve_context':
-      await new Promise((r) => setTimeout(r, 400));
-      return ok(resolve(str('query') ?? ''));
+    case 'project_status': {
+      const project = str('project') ?? 'AI-Marketing';
+      const n = docCounts[project] ?? 0;
+      const failed = project === 'AI-Marketing' ? 2 : 0;
+      return ok({ project, status: 'ready', documents: n, ready_documents: n - failed, failed_documents: failed, can_set_up: true, microsoft: { connected: project === 'PureAI', account: null }, sources: n ? 1 : 0 });
+    }
+    case 'search_documents': {
+      const project = str('project') ?? 'AI-Marketing';
+      const all = sampleDocs(project);
+      const q = (str('search') ?? '').toLowerCase();
+      const st = str('status');
+      const hits = all.filter((d) => (!q || d.name.toLowerCase().includes(q)) && (!st || d.status === st));
+      const from = Number((str('next_page') ?? 'c:0').slice(2)) || 0;
+      const page = hits.slice(from, from + 20);
+      return ok({ project, documents: page, count: page.length, total: hits.length, ...(from + 20 < hits.length ? { next_page: `c:${from + 20}` } : {}) });
+    }
+    case 'connect_source': {
+      const project = str('project') ?? 'AI-Marketing';
+      if (connected.has(`${project}:${sourceKey(str('source'))}`) && !args.reconnect) return ok({ project, status: 'connected', note: 'Already connected.' });
+      connected.add(`${project}:${sourceKey(str('source'))}`); // the sample "signs in" as soon as the link is asked for
+      return ok({ project, status: 'open_link', link: 'about:blank#sample-sign-in', expires_in_minutes: 10 });
+    }
+    case 'disconnect_source': {
+      const project = str('project') ?? 'AI-Marketing';
+      if (!args.confirm) return ok({ project, status: 'confirm', warning: 'Disconnecting means browsing and adding files needs a new sign-in; documents already added stay.' });
+      connected.delete(`${project}:${sourceKey(str('source'))}`);
+      return ok({ project, status: 'disconnected', note: 'Disconnected here. Documents already added stay.' });
+    }
+    case 'browse_source': {
+      const source = str('source') ?? 'onedrive';
+      if (source === 'sharepoint') {
+        if (!str('site_id')) return ok({ level: 'sites', items: str('search') ? [{ id: 'site-1', name: 'Marketing site', kind: 'site' }] : [] });
+        if (!str('drive_id')) return ok({ level: 'libraries', items: [{ id: 'lib-1', name: 'Documents', kind: 'library', site_id: str('site_id') }] });
+        return ok({ level: 'folder', items: [{ id: 'sp-f1', name: 'Campaigns', kind: 'folder', site_id: str('site_id'), drive_id: str('drive_id') }] });
+      }
+      const folder = str('folder_id');
+      const items = folder
+        ? [{ id: `${folder}-a`, name: 'Q4 plan.docx', kind: 'file', size_kb: 84 }, { id: `${folder}-b`, name: 'Briefs', kind: 'folder', items_inside: 6 }]
+        : [{ id: 'od-1', name: 'Marketing', kind: 'folder', items_inside: 12 }, { id: 'od-2', name: 'Launch notes.pdf', kind: 'file', size_mb: 1.2 }];
+      return ok({ level: source === 'gdrive' ? 'gdrive' : 'onedrive', items, count: items.length });
+    }
+    case 'add_files': {
+      const items = Array.isArray(args.items) ? (args.items as string[]) : [];
+      if (!items.length) return fail('items: give the ids from browse_source');
+      return ok({ project: str('project'), added: items.map((i) => (i === 'od-1' ? 'Marketing' : i === 'od-2' ? 'Launch notes.pdf' : i)), job_id: 'job-1', note: 'Syncing has started.' });
+    }
+    case 'retry_file':
+      return ok({ note: str('document') ? 'Retrying that document.' : 'Retrying the failed files.' });
     case 'governance_summary': // GUESS
       return ok({
         workspace: 'App Minds',
@@ -631,6 +614,10 @@ export async function mockCallTool(name: string, args: Record<string, unknown>):
     case 'show_artefact': {
       // Live shape: the page's text only; the page itself is on the connector's card.
       const key = str('artefact_key');
+      if (key === 'sales-pulse') {
+        const html = dashboardHtml(42, 12);
+        return ok({ name: 'Dashboard html', type: 'html', content: 'Sales pulse dashboard', note: 'Shown on the card.', ...(args.include_page ? { page: { format: 'html', content: html } } : {}) });
+      }
       const content = key === 'sample-guide' ? GUIDE_TEXT : 'Precision vs recall\nTwo complementary metrics.';
       return ok({ name: key, type: null, format: 'text of the page (the page is on the card)', content, note: 'Shown on the card.' });
     }
@@ -676,5 +663,70 @@ function richAgentAnswer() {
       { title: 'precision_vs_recall.html', type: 'html', path: 'precision_vs_recall.html', content: 'Precision vs recall\nTwo complementary metrics.', artefact_key: 'sample-artefact' },
     ],
     __resources: [{ uri: 'ui://artefact/sample-artefact', mimeType: 'text/html', text: html }],
+  };
+}
+
+// ---------- file sources (shapes from mcp-service tools.py) ----------
+const connected = new Set<string>();
+const sourceKey = (s?: string) => (s === 'gdrive' ? 'google' : 'microsoft');
+
+function sampleDocs(project: string) {
+  const n = docCounts[project] ?? 0;
+  const kinds = ['brief', 'retro', 'plan', 'notes', 'deck'];
+  return Array.from({ length: n }, (_, i) => ({
+    name: `${project.toLowerCase()}-${kinds[i % kinds.length]}-${String(i + 1).padStart(2, '0')}.${i % 3 ? 'md' : 'pdf'}`,
+    id: `doc-${project}-${i}`,
+    status: project === 'AI-Marketing' && i >= n - 2 ? 'failed' : 'ready',
+    source: 'teamdocs_folder',
+    pages: 1 + (i % 7),
+    added: '2026-11-21T02:00:09Z',
+  }));
+}
+
+// ---------- the DAG mind's run (made-up data from a seeded generator, never a live payload) ----------
+function rng(seed: number) {
+  let x = seed >>> 0 || 1;
+  return () => ((x = (x * 1664525 + 1013904223) >>> 0) / 4294967296);
+}
+function salesRows(seed: number, months: number) {
+  const r = rng(seed);
+  const rows: { month: string; region: string; product: string; revenue: number }[] = [];
+  for (let m = 1; m <= months; m++)
+    for (const region of ['North', 'South', 'East', 'West'])
+      for (const product of ['Alpha', 'Beta', 'Gamma'])
+        rows.push({ month: `M${String(m).padStart(2, '0')}`, region, product, revenue: Math.round((20000 + r() * 30000) * (1 + m * 0.015)) });
+  return rows;
+}
+function dashboardHtml(seed: number, months: number) {
+  const rows = salesRows(seed, months);
+  const total = rows.reduce((t, x) => t + x.revenue, 0);
+  const byRegion = ['North', 'South', 'East', 'West'].map((g) => [g, rows.filter((x) => x.region === g).reduce((t, x) => t + x.revenue, 0)] as const);
+  const max = Math.max(...byRegion.map(([, v]) => v));
+  const bars = byRegion
+    .map(([g, v], i) => `<g><rect x="${20 + i * 80}" y="${160 - (v / max) * 140}" width="50" height="${(v / max) * 140}" fill="#2a6df4" rx="4"/><text x="${45 + i * 80}" y="178" text-anchor="middle" font-size="12">${g}</text></g>`)
+    .join('');
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Sales pulse</title><style>body{font-family:system-ui,sans-serif;margin:24px;color:#1b1d22;background:#fff}.k{display:flex;gap:12px;flex-wrap:wrap}.k div{border:1px solid #e3e5ea;border-radius:10px;padding:12px 16px;min-width:140px}.k b{display:block;font-size:22px}.ai{background:#f3f6ff;border-left:4px solid #2a6df4;padding:12px 16px;border-radius:6px;margin-top:16px}</style></head><body><h1>Sales pulse</h1><p>Sample data, seed ${seed}, ${months} months.</p><div class="k"><div><b>${(total / 1e6).toFixed(2)}M</b>Total revenue</div><div><b>${byRegion.sort((a, b) => b[1] - a[1])[0]?.[0]}</b>Top region</div></div><h2>Revenue by region</h2><svg viewBox="0 0 340 190" width="100%" style="max-width:520px">${bars}</svg><div class="ai"><b>AI analysis</b><p>Revenue grew steadily across the period. Diversify beyond the leading product line.</p></div></body></html>`;
+}
+function pipelineRun(run_id: string, inputs: Record<string, unknown> = {}) {
+  const seed = Number(inputs.seed ?? 42) || 42;
+  const months = Number(inputs.months ?? 12) || 12;
+  const analysis = { headline: 'Sample: revenue rose over the period.', insights: ['North led the regions.', 'Gamma grew fastest.'], risk: 'One product carries most of the revenue.', recommendation: 'Shift some budget to the fastest-growing product.' };
+  return {
+    run_id,
+    conversation_id: run_id,
+    answer: JSON.stringify(analysis),
+    cost: { usd: 0.0034, tokens: 10307 },
+    outputs: {
+      generate_sales_data: { result: { months, rows: `${salesRows(seed, months).length} rows` } },
+      analyse_numbers: { output: JSON.stringify(analysis) },
+      render_dashboard: { result: { dashboard_html: 'Sales pulse Sample data… (in full: the artefact "Dashboard html")' } },
+    },
+    artefacts: [{ title: 'Dashboard html', type: 'html', artefact_key: 'sales-pulse' }],
+    steps: [
+      { tool: 'Running analysis', status: 'done' },
+      { tool: 'llm_prompt', status: 'done' },
+      { tool: 'Running analysis', status: 'done' },
+    ],
+    took_s: 20.9,
   };
 }

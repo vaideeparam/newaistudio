@@ -67,12 +67,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const reload = useCallback(async () => {
     try {
-      const [me, ws, pj, ag, cn] = await Promise.all([
+      const [me, ws, pj, ag] = await Promise.all([
         callTool<{ workspace?: string; default_project?: string }>('whoami'),
         callTool<{ workspaces?: Workspace[] }>('list_workspaces').catch(() => ({ workspaces: [] as Workspace[] })),
         callTool<{ projects?: Project[] }>('list_projects'),
         callTool<{ agents?: AgentSummary[] }>('find_agents'),
-        callTool<{ connectors?: Connector[]; catalog?: ConnectorType[] }>('list_connectors').catch(() => null),
       ]);
       const projectsList = pj?.projects ?? [];
       // find_agents returns only agents people can run (published). list_agents per project adds
@@ -94,7 +93,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         byId.set(a.id, { ...byId.get(a.id), ...a, description: a.description || byId.get(a.id)?.description });
       }
       const allAgents = [...byId.values()].sort((x, y) => (y.updated ?? '').localeCompare(x.updated ?? ''));
-      const cnList = cn ?? { connectors: await connectorsFromSources(projectsList), catalog: FILE_CATALOG };
+      // The gateway's only connectors are file sources (OneDrive, SharePoint, Google Drive), per project.
+      const cnList = { connectors: await connectorsFromSources(projectsList), catalog: FILE_CATALOG };
       setState({
         workspace: me?.workspace,
         defaultProject: me?.default_project ?? undefined,
@@ -130,9 +130,9 @@ interface SourceStatus {
 }
 
 /**
- * Fallback when the MCP has no list_connectors: the live Gateway exposes file
- * sources per project (source_status / connect_source / browse_source), so
- * build the connector list from those.
+ * The live Gateway has no list of connectors: it exposes file sources per
+ * project (source_status / connect_source / browse_source), so the list is
+ * built from those.
  */
 async function connectorsFromSources(projects: Project[]): Promise<Connector[]> {
   const all = await Promise.all(
